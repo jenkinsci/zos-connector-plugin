@@ -21,6 +21,25 @@
     <java.level>7</java.level>
   </properties>
 
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-release-plugin</artifactId>
+        <configuration>
+          <goals>deploy</goals>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.jenkins-ci.tools</groupId>
+        <artifactId>maven-hpi-plugin</artifactId>
+        <extensions>true</extensions>
+        <configuration>
+          <compatibleSinceVersion>1.2.4</compatibleSinceVersion>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
   <licenses>
     <license>
       <name>MIT License</name>
