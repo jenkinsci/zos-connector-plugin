@@ -107,7 +107,7 @@ public class SCLMFileState {
         this.name = name;
         this.type = type;
         this.version = version;
-        this.changeDate = changeDate;
+        this.changeDate = (Date) changeDate.clone();
         this.changeUserID = changeUserID;
         this.changeGroup = changeGroup;
     }
@@ -217,7 +217,7 @@ public class SCLMFileState {
     {
         public int compare(SCLMFileState o1, SCLMFileState o2)
         {
-            int compareChangeDate = -o1.changeDate.compareTo(o2.changeDate);
+            int compareChangeDate = o2.changeDate.compareTo(o1.changeDate);
             if (compareChangeDate == 0) {
                 int compareType = o1.type.compareTo(o2.type);
                 if (compareType == 0) {
@@ -288,6 +288,18 @@ public class SCLMFileState {
      */
     @Override
     public boolean equals(Object o) {
-        return o instanceof SCLMFileState && this.getPath().compareTo(((SCLMFileState) o).getPath()) == 0;
+	    if (o != null) {
+		    return o instanceof SCLMFileState && this.getPath().compareTo(((SCLMFileState) o).getPath()) == 0;
+	    }
+	    return false;
+
+    }
+
+	/**
+	 * @return hash for the path
+	 */
+	@Override
+	public int hashCode() {
+	    return this.getPath().hashCode();
     }
 }
