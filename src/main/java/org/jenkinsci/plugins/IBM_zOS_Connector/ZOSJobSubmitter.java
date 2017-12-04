@@ -1,9 +1,6 @@
 package org.jenkinsci.plugins.IBM_zOS_Connector;
 
-import hudson.EnvVars;
-import hudson.Extension;
-import hudson.FilePath;
-import hudson.Launcher;
+import hudson.*;
 import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
@@ -148,10 +145,9 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
 			_password = environment.expand(_password);
 			_job = environment.expand(_job);
 			_MaxCC = environment.expand(_MaxCC);
-		} catch (IOException e) {
+		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+			throw new AbortException(e.getMessage());
 		}
 
 		// Get connector.
