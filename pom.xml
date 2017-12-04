@@ -10,7 +10,7 @@
   </parent>
 
   <artifactId>zos-connector</artifactId>
-  <version>1.2.5-SNAPSHOT</version>
+  <version>1.2.5-SNAPSHOT-PIPELINES</version>
   <packaging>hpi</packaging>
   <name>IBM z/OS Connector</name>
   <description>IBM z/OS FTP Connector - bunch of tools for integration with IBM z/OS</description>

@@ -4,15 +4,15 @@ import hudson.EnvVars;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.model.AbstractBuild;
-import hudson.model.AbstractProject;
-import hudson.model.BuildListener;
+import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
+import jenkins.tasks.SimpleBuildStep;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
+import javax.annotation.Nonnull;
 import javax.servlet.ServletException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -28,7 +28,7 @@ import java.util.logging.Logger;
  * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>
  * @version 1.0
  */
-public class ZOSJobSubmitter extends Builder {
+public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
 	/**
 	 * Simple logger.
 	 */
@@ -122,26 +122,27 @@ public class ZOSJobSubmitter extends Builder {
 	/**
 	 * Submit the job for execution.
 	 *
-	 * @param build    Current build.
-	 * @param launcher Current launcher.
-	 * @param listener Current listener.
-	 * @return Whether the job completed successfully.
+	 * @param run			Current run
+	 * @param workspace		Current workspace
+	 * @param launcher 		Current launcher
+	 * @param listener 		Current listener
+	 *
 	 * <br> Always <code>true</code> if <b><code>wait</code></b> is <code>false</code>.
 	 * @see ZFTPConnector
 	 */
 	@Override
-	public boolean perform(AbstractBuild build, Launcher launcher, BuildListener listener) {
+	public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws InterruptedException, IOException {
 		// variables to be expanded
-		String _server = this.server;
-		String _userID = this.userID;
-		String _password = this.password;
-		String _job = this.job;
-		String _MaxCC = this.MaxCC;
+		String _server 		= this.server;
+		String _userID 		= this.userID;
+		String _password 	= this.password;
+		String _job 		= this.job;
+		String _MaxCC 		= this.MaxCC;
 
-		String logPrefix = build.getParent().getDisplayName() + " " + build.getId() + ": ";
+		String logPrefix = run.getParent().getDisplayName() + " " + run.getId() + ": ";
 		try {
 			logger.info(logPrefix + "will expand variables");
-			EnvVars environment = build.getEnvironment(listener);
+			EnvVars environment = run.getEnvironment(listener);
 			_server = environment.expand(_server);
 			_userID = environment.expand(_userID);
 			_password = environment.expand(_password);
@@ -155,11 +156,11 @@ public class ZOSJobSubmitter extends Builder {
 
 		// Get connector.
 		ZFTPConnector zFTPConnector = new ZFTPConnector(_server,
-			this.port,
-			_userID,
-			_password,
-			this.JESINTERFACELEVEL1,
-			logPrefix);
+				this.port,
+				_userID,
+				_password,
+				this.JESINTERFACELEVEL1,
+				logPrefix);
 		// Read the JCL.
 		InputStream inputStream = new ByteArrayInputStream(_job.getBytes(Charset.defaultCharset()));
 		// Prepare the output stream.
@@ -198,15 +199,15 @@ public class ZOSJobSubmitter extends Builder {
 		if (this.wait) {
 			// Save the log.
 			try {
-				FilePath savedOutput = new FilePath(build.getWorkspace(),
-					String.format("%s [%s] (%s - %s) %s - %s.log",
-						zFTPConnector.getJobName(),
-						printableCC,
-						_server,
-						zFTPConnector.getJobID(),
-						build.getParent().getDisplayName(),
-						build.getId()
-					));
+				FilePath savedOutput = new FilePath(workspace,
+						String.format("%s [%s] (%s - %s) %s - %s.log",
+								zFTPConnector.getJobName(),
+								printableCC,
+								_server,
+								zFTPConnector.getJobID(),
+								run.getParent().getDisplayName(),
+								run.getId()
+						));
 				outputStream.writeTo(savedOutput.write());
 				outputStream.close();
 			} catch (IOException e) {
@@ -217,10 +218,6 @@ public class ZOSJobSubmitter extends Builder {
 		} else {
 			printableCC = "0000"; //set RC = 0
 		}
-
-		// Return whether the job succeeded or not.
-		// If JESINTERFACELEVEL is configured, no real RC is provided.
-		return result && (this.JESINTERFACELEVEL1 || (_MaxCC.compareTo(printableCC) >= 0));
 	}
 
 	/**
