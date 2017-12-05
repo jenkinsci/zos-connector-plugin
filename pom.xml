@@ -10,7 +10,7 @@
   </parent>
 
   <artifactId>zos-connector</artifactId>
-  <version>1.2.5-SNAPSHOT</version>
+  <version>1.2.5</version>
   <packaging>hpi</packaging>
   <name>IBM z/OS Connector</name>
   <description>IBM z/OS FTP Connector - bunch of tools for integration with IBM z/OS</description>
@@ -70,7 +70,7 @@
     <connection>scm:git:http://github.com/jenkinsci/zos-connector-plugin.git</connection>
     <developerConnection>scm:git:http://github.com/jenkinsci/${project.artifactId}-plugin.git</developerConnection>
     <url>http://github.com/jenkinsci/${project.artifactId}-plugin</url>
-    <tag>HEAD</tag>
+    <tag>v1.2.5</tag>
   </scm>
 
   <dependencies>
