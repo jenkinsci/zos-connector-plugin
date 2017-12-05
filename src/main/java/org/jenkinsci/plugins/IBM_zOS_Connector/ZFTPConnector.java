@@ -1,6 +1,6 @@
 package org.jenkinsci.plugins.IBM_zOS_Connector;
 
-import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 import org.apache.commons.net.PrintCommandListener;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPConnectionClosedException;
@@ -86,9 +86,9 @@ class ZFTPConnector {
 	 */
 	private String logPrefix;
 	/**
-	 * Build listener (if provided).
+	 * Task listener (if provided).
 	 */
-	private BuildListener listener;
+	private TaskListener listener;
 
 	/**
 	 * Basic constructor with minimal parameters required.
@@ -218,8 +218,8 @@ class ZFTPConnector {
 		return true;
 	}
 
-	boolean submit(InputStream inputStream, boolean wait, int waitTime, OutputStream outputStream, boolean deleteLogFromSpool, BuildListener buildListener) {
-		this.listener = buildListener;
+	boolean submit(InputStream inputStream, boolean wait, int waitTime, OutputStream outputStream, boolean deleteLogFromSpool, TaskListener taskListener) {
+		this.listener = taskListener;
 		return this.submit(inputStream, wait, waitTime, outputStream, deleteLogFromSpool);
 	}
 
