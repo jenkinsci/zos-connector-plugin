@@ -59,6 +59,10 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      */
     private boolean deleteJobFromSpool;
     /**
+     * Whether the job log is to be printed to Console.
+     */
+    private boolean jobLogToConsole;
+    /**
      * Time to wait for the job to end. If set to <code>0</code> the buil will wait forever.
      */
     private int waitTime;
@@ -80,7 +84,8 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      * @param password           User password.
      * @param wait               Whether we need to wait for the job completion.
      * @param waitTime           Maximum wait time. If set to <code>0</code> will wait forever.
-     * @param deleteJobFromSpool Whether the job log will e deleted from the spool after end.
+     * @param deleteJobFromSpool Whether the job log will be deleted from the spool after end.
+     * @param jobLogToConsole    Whether the job log will be printed to console.
      * @param job                JCL of the job to be submitted.
      * @param JESINTERFACELEVEL1 Is FTP server configured for JESINTERFACELEVEL=1?
      */
@@ -93,6 +98,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
             boolean wait,
             int waitTime,
             boolean deleteJobFromSpool,
+            boolean jobLogToConsole,
             String job,
             String MaxCC,
             boolean JESINTERFACELEVEL1) {
@@ -105,6 +111,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         this.waitTime = waitTime;
         this.JESINTERFACELEVEL1 = JESINTERFACELEVEL1;
         this.deleteJobFromSpool = deleteJobFromSpool;
+        this.jobLogToConsole = jobLogToConsole;
         this.job = job;
         if (MaxCC == null || MaxCC.isEmpty()) {
             this.MaxCC = "0000";
@@ -193,6 +200,9 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
 
         // If wait was requested try to save the job log.
         if (this.wait) {
+            if (this.jobLogToConsole){
+                listener.getLogger().println(outputStream.toString("US-ASCII"));
+            }
             // Save the log.
             try {
                 FilePath savedOutput = new FilePath(workspace,
@@ -280,6 +290,15 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      */
     public boolean getDeleteJobFromSpool() {
         return this.deleteJobFromSpool;
+    }
+
+    /**
+     * Get jobLogToConsole.
+     *
+     * @return <b><code>jobLogToConsole</code></b>
+     */
+    public boolean getJobLogToConsole() {
+        return this.jobLogToConsole;
     }
 
     /**
