@@ -330,7 +330,7 @@ class ZFTPConnector {
             if (this.checkJobAvailability()) {
                 jobWasObserved = true;
             } else {
-                if jobWasObserved {
+                if (jobWasObserved) {
                     return false;
                 }
             }
