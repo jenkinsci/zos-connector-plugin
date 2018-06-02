@@ -1,15 +1,27 @@
 package org.jenkinsci.plugins.IBM_zOS_Connector;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.google.common.base.Joiner;
-import hudson.Extension;
-import hudson.FilePath;
-import hudson.Launcher;
-import hudson.Util;
+import hudson.*;
+import hudson.model.Item;
 import hudson.model.Job;
+import hudson.model.Queue;
 import hudson.model.Run;
 import hudson.model.TaskListener;
+import hudson.model.queue.Tasks;
 import hudson.scm.*;
+import hudson.security.ACL;
+import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.QueryParameter;
 
 import javax.annotation.Nonnull;
 import java.io.*;
@@ -21,10 +33,9 @@ import java.util.logging.Logger;
  * Class implementing SCM functionality for SCLM.s
  *
  * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>
- *
  * @version 1.0
  */
-public class SCLMSCM  extends SCM {
+public class SCLMSCM extends SCM {
     /**
      * LPAR name or IP address.
      */
@@ -33,14 +44,11 @@ public class SCLMSCM  extends SCM {
      * FTP port to connect to.
      */
     private int port;
+
     /**
-     * User ID.
+     * Credentials id to be converted to login+pw.
      */
-    private String userID;
-    /**
-     * User password.
-     */
-    private String password;
+    private String credentialsId;
     /**
      * FTP server JESINTERFACELEVEL=1?
      */
@@ -66,51 +74,66 @@ public class SCLMSCM  extends SCM {
     /**
      * Step for invoking FLMCMD.
      */
-    private String JobStep = SCLMSCMDescriptor.SCLMJobHeader;
+    private String JobStep;
     /**
      * Job header.
      */
-    private String JobHeader = SCLMSCMDescriptor.SCLMJobHeader;
+    private String JobHeader;
     /**
      * Use custom job header.
      */
-    private boolean custJobHeader = false;
+    private boolean custJobHeader;
     /**
      * Use custom FLMCMD job step.
      */
-    private boolean custJobStep = false;
+    private boolean custJobStep;
     /**
      * Current revision state.
      */
     private SCLMSCMRevisionState currentRevision;
-	/**
-	 * Simple logger.
-	 */
-	private static final Logger logger = Logger.getLogger(SCLMSCM.class.getName());
-	private static final String logPrefix = "SCLM: ";
+    /**
+     * Simple logger.
+     */
+    private static final Logger logger = Logger.getLogger(SCLMSCM.class.getName());
+    private static final String logPrefix = "SCLM: ";
+
+    private static final String entryTemplateString = String.join(System.lineSeparator(),
+            Collections.unmodifiableList(Arrays.asList(
+                    "\t<entry>",
+                    "\t\t<date>%s</date>",
+                    "\t\t<project>%s</project>",
+                    "\t\t<alternate>%s</alternate>",
+                    "\t\t<group>%s</group>",
+                    "\t\t<type>%s</type>",
+                    "\t\t<name>%s</name>",
+                    "\t\t<version>%d</version>",
+                    "\t\t<userID>%s</userID>",
+                    "\t\t<changeGroup>%s</changeGroup>",
+                    "\t\t<editType>%s</editType>",
+                    "\t</entry>"
+            )));
+
 
     /**
      * Constructor that is invoked from project configuration page.
      *
-     * @param server LPAR name of IP address.
-     * @param port FTP port to connect to.
-     * @param userID User ID.
-     * @param password User password.
+     * @param server             LPAR name of IP address.
+     * @param port               FTP port to connect to.
+     * @param credentialsId      Credentials id..
      * @param JESINTERFACELEVEL1 JESINTERFACELEVEL=1?
-     * @param project SCLM Project Name.
-     * @param alternate SCLM Alternate Project Definition.
-     * @param group SCLM Group.
-     * @param types Types under interest (separated by comma).
-     * @param custJobStep Whether user defines own FLMCMD job step.
-     * @param JobStep User-supplies FLMCMD job step.
-     * @param custJobHeader Whether user supplied own job header.
-     * @param JobHeader User-supplied job header.
+     * @param project            SCLM Project Name.
+     * @param alternate          SCLM Alternate Project Definition.
+     * @param group              SCLM Group.
+     * @param types              Types under interest (separated by comma).
+     * @param custJobStep        Whether user defines own FLMCMD job step.
+     * @param JobStep            User-supplies FLMCMD job step.
+     * @param custJobHeader      Whether user supplied own job header.
+     * @param JobHeader          User-supplied job header.
      */
     @DataBoundConstructor
     public SCLMSCM(String server,
                    int port,
-                   String userID,
-                   String password,
+                   String credentialsId,
                    boolean JESINTERFACELEVEL1,
                    String project,
                    String alternate,
@@ -119,41 +142,32 @@ public class SCLMSCM  extends SCM {
                    boolean custJobStep,
                    String JobStep,
                    boolean custJobHeader,
-                   String JobHeader)
-    {
+                   String JobHeader) {
         this.server = server.replaceAll("\\s", "");
         this.port = port;
-        this.userID = userID.replaceAll("\\s","");
-        this.password = password.replaceAll("\\s","");
-	    this.JESINTERFACELEVEL1 = JESINTERFACELEVEL1;
+        this.credentialsId = credentialsId;
+        this.JESINTERFACELEVEL1 = JESINTERFACELEVEL1;
 
-        this.project = project.replaceAll("\\s","");
-        this.alternate = alternate.replaceAll("\\s","");
-        this.group = group.replaceAll("\\s","");
+        this.project = project.replaceAll("\\s", "");
+        this.alternate = alternate.replaceAll("\\s", "");
+        this.group = group.replaceAll("\\s", "");
 
-        this.types = new LinkedList<String>();
-        for(String temp: types.split(","))
-        {
+        this.types = new LinkedList<>();
+        for (String temp : types.split(",")) {
             temp = temp.replaceAll("\\s", "");
-            if(!temp.isEmpty())
+            if (!temp.isEmpty())
                 this.types.add(temp);
         }
         this.custJobStep = custJobStep;
-        if(this.custJobStep)
-        {
+        if (this.custJobStep) {
             this.JobStep = JobStep;
-        }
-        else
-        {
+        } else {
             this.JobStep = SCLMSCMDescriptor.SCLMJobStep;
         }
         this.custJobHeader = custJobHeader;
-        if(this.custJobHeader)
-        {
+        if (this.custJobHeader) {
             this.JobHeader = JobHeader;
-        }
-        else
-        {
+        } else {
             this.JobHeader = SCLMSCMDescriptor.SCLMJobHeader;
         }
     }
@@ -161,7 +175,7 @@ public class SCLMSCM  extends SCM {
     /**
      * Dummy constructor
      */
-    public  SCLMSCM() {
+    public SCLMSCM() {
         this.custJobHeader = false;
         this.custJobStep = false;
         this.JobStep = SCLMSCMDescriptor.SCLMJobStep;
@@ -173,8 +187,7 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>custJobHeader</code></b>
      */
-    public boolean getCustJobHeader()
-    {
+    public boolean getCustJobHeader() {
         return this.custJobHeader;
     }
 
@@ -183,8 +196,7 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>custJobStep</code></b>
      */
-    public boolean  getCustJobStep()
-    {
+    public boolean getCustJobStep() {
         return this.custJobStep;
     }
 
@@ -193,7 +205,7 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>server</code></b>
      */
-    public String   getServer() {
+    public String getServer() {
         return this.server;
     }
 
@@ -202,43 +214,32 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>port</code></b>
      */
-    public int      getPort() {
+    public int getPort() {
         return this.port;
     }
 
     /**
-     * Get User ID.
-     *
-     * @return <b><code>userID</code></b>
+     * @return credentials id provided.
      */
-    public String   getUserID() {
-        return this.userID;
+    public String getCredentialsId() {
+        return credentialsId;
     }
 
-	/**
-	 * Get User password.
-	 *
-	 * @return <b><code>password</code></b>
-	 */
-	public String   getPassword() {
-		return this.password;
-	}
+    /**
+     * Get JESINTERFACELEVEL1.
+     *
+     * @return <b><code>JESINTERFACELEVEL1</code></b>
+     */
+    public boolean getJESINTERFACELEVEL1() {
+        return this.JESINTERFACELEVEL1;
+    }
 
-	/**
-	 * Get JESINTERFACELEVEL1.
-	 *
-	 * @return <b><code>JESINTERFACELEVEL1</code></b>
-	 */
-	public boolean  getJESINTERFACELEVEL1() {
-		return this.JESINTERFACELEVEL1;
-	}
-
-	/**
+    /**
      * Get SCLM Project Name.
      *
      * @return <b><code>project</code></b>
      */
-    public String   getProject() {
+    public String getProject() {
         return this.project;
     }
 
@@ -247,7 +248,7 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>alternate</code></b>
      */
-    public String   getAlternate() {
+    public String getAlternate() {
         return this.alternate;
     }
 
@@ -256,7 +257,7 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>group</code></b>
      */
-    public String   getGroup() {
+    public String getGroup() {
         return this.group;
     }
 
@@ -265,8 +266,7 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>JobHeader</code></b>
      */
-    public String   getJobHeader()
-    {
+    public String getJobHeader() {
         return this.JobHeader;
     }
 
@@ -275,8 +275,7 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>JobStep</code></b>
      */
-    public String   getJobStep ()
-    {
+    public String getJobStep() {
         return this.JobStep;
     }
 
@@ -285,7 +284,7 @@ public class SCLMSCM  extends SCM {
      *
      * @return <b><code>types</code></b>
      */
-    public String   getTypes() {
+    public String getTypes() {
         return Joiner.on(",").join(this.types);
     }
 
@@ -293,19 +292,23 @@ public class SCLMSCM  extends SCM {
      * Fetch new remote revision.
      *
      * @param baseline Last revision.
-     *
+     * @param user     username for logon
+     * @param password password for logon
      * @return New remote revision.
-     *
      * @see ZFTPConnector
      */
-    private SCLMSCMRevisionState getNewRevision(SCLMSCMRevisionState baseline)
-    {
-	    logger.info(logPrefix + "Will get new Revision State.");
+    private SCLMSCMRevisionState getNewRevision(SCLMSCMRevisionState baseline,
+                                                String user, String password) {
+        logger.info(logPrefix + "Will get new Revision State.");
+
         // Construct connector.
-        ZFTPConnector zFTPConnector = new ZFTPConnector(this.server,this.port,this.userID,this.password, this.JESINTERFACELEVEL1, logPrefix);
+        ZFTPConnector zFTPConnector = new ZFTPConnector(
+                this.server,
+                this.port,
+                user, password, this.JESINTERFACELEVEL1, logPrefix);
 
         // Fetch revision.
-        return new SCLMSCMRevisionState(this.project, this.alternate, this.group,this.types,this.JobHeader + "\n" + this.JobStep, zFTPConnector, baseline);
+        return new SCLMSCMRevisionState(this.project, this.alternate, this.group, this.types, this.JobHeader + "\n" + this.JobStep, zFTPConnector, baseline);
     }
 
     /**
@@ -331,27 +334,33 @@ public class SCLMSCM  extends SCM {
     /**
      * Compare remote revision with old one.
      *
-     * @param project Current project.
-     * @param launcher Current launcher.
+     * @param project   Current project.
+     * @param launcher  Current launcher.
      * @param workspace Current workspace.
-     * @param listener Current listener.
+     * @param listener  Current listener.
      * @param _baseline Old revision.
-     *
      * @return PollingResult with comparison.
-     *
-     * @throws IOException
-     * @throws InterruptedException
-     *
      * @see PollingResult
      * @see SCLMSCMRevisionState
-     * @see SCLMSCM#getNewRevision(SCLMSCMRevisionState)
+     * @see SCLMSCM#getNewRevision(SCLMSCMRevisionState, String, String)
      */
     @Override
-    public PollingResult compareRemoteRevisionWith(@Nonnull Job<?,?> project, Launcher launcher, FilePath workspace, @Nonnull TaskListener listener, @Nonnull SCMRevisionState _baseline) throws IOException, InterruptedException
-    {
+    public PollingResult compareRemoteRevisionWith(@Nonnull Job<?, ?> project, Launcher launcher, FilePath workspace, @Nonnull TaskListener listener, @Nonnull SCMRevisionState _baseline) {
+        Run<?, ?> lastRun = project.getLastBuild();
+        // Get login + pw.
+        DomainRequirement domain = new DomainRequirement();
+        StandardUsernamePasswordCredentials creds = CredentialsProvider.findCredentialById(credentialsId,
+                StandardUsernamePasswordCredentials.class, lastRun,
+                domain);
+        if (creds == null) {
+            listener.getLogger().println("Cannot resolve credentials: " + credentialsId);
+            return PollingResult.NO_CHANGES;
+        }
+
         // Get new revision.
-        SCLMSCMRevisionState baseline = (SCLMSCMRevisionState)_baseline;
-        SCLMSCMRevisionState tempRevision = this.getNewRevision(baseline);
+        SCLMSCMRevisionState baseline = (SCLMSCMRevisionState) _baseline;
+        SCLMSCMRevisionState tempRevision = this.getNewRevision(baseline,
+                creds.getUsername(), creds.getPassword().getPlainText());
 
         // Compare cached state with latest polled state.
         boolean changes = !tempRevision.getChangedOnly().isEmpty();
@@ -364,68 +373,62 @@ public class SCLMSCM  extends SCM {
      * Checkout remote changes to the workspace.
      * <br>As the build itself is performed via SCLM, the checkout's main task is generation of revision.
      *
-     * @param build Current build.
-     * @param launcher Current launcher.
-     * @param workspace Current workspace.
-     * @param listener Current listener.
+     * @param build         Current build.
+     * @param launcher      Current launcher.
+     * @param workspace     Current workspace.
+     * @param listener      Current listener.
      * @param changelogFile Current changeLogFile.
-     * @param baseline Last revision.
-     *
-     * @throws IOException
-     * @throws InterruptedException
-     *
+     * @param baseline      Last revision.
      * @see SCLMSCMRevisionState
-     * @see SCLMSCM#getNewRevision(SCLMSCMRevisionState)
+     * @see SCLMSCM#getNewRevision(SCLMSCMRevisionState, String, String)
      */
     @Override
-    public void checkout(@Nonnull Run<?, ?> build, @Nonnull Launcher launcher, @Nonnull FilePath workspace, @Nonnull TaskListener listener, File changelogFile, SCMRevisionState baseline) throws IOException, InterruptedException
-    {
-	    logger.info(logPrefix + "Will checkout");
+    public void checkout(@Nonnull Run<?, ?> build, @Nonnull Launcher launcher, @Nonnull FilePath workspace, @Nonnull TaskListener listener, File changelogFile, SCMRevisionState baseline) throws IOException {
+        logger.info(logPrefix + "Will checkout");
+        // Get login + pw.
+        DomainRequirement domain = new DomainRequirement();
+        StandardUsernamePasswordCredentials creds = CredentialsProvider.findCredentialById(credentialsId,
+                StandardUsernamePasswordCredentials.class, build,
+                domain);
+        if (creds == null) {
+            listener.getLogger().println("Cannot resolve credentials: " + credentialsId);
+            this.createEmptyChangeLog(changelogFile, listener, "changelog");
+            return;
+        }
+
         // Get new revision.
-        this.currentRevision = this.getNewRevision((SCLMSCMRevisionState)baseline);
-        if(changelogFile != null) {
+        this.currentRevision = this.getNewRevision((SCLMSCMRevisionState) baseline,
+                creds.getUsername(), creds.getPassword().getPlainText());
+
+        if (changelogFile != null) {
             // Need to write changelog.xml.
             // Narrow file list and write it.
             List<SCLMFileState> temp = this.currentRevision.getChangedOnly();
-            if (!temp.isEmpty())
-            {
-                Collections.sort(temp, SCLMFileState.changeComparator);
+            if (!temp.isEmpty()) {
+                temp.sort(SCLMFileState.changeComparator);
                 PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(changelogFile), "UTF-8"));
                 writer.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
                 writer.println("<changelog>");
                 for (SCLMFileState file : temp) {
                     String editType;
-                    if(file.editType == null) {
-                        editType = "SAME";
-                    } else {
-                        if (file.editType == EditType.EDIT) {
-                            editType = "EDIT";
-                        } else {
-                            if (file.editType == EditType.DELETE) {
-                                editType = "DELETE";
-                            } else {
-                                editType = "ADD";
-                            }
-                        }
-                    }
-                    writer.println("\t<entry>");
-                    writer.println(String.format("\t\t<date>%s</date>", SCLMFileState.dateToString(file.changeDate)));
-                    writer.println(String.format("\t\t<project>%s</project>", file.project));
-                    writer.println(String.format("\t\t<alternate>%s</alternate>", file.alternate));
-                    writer.println(String.format("\t\t<group>%s</group>", file.group));
-                    writer.println(String.format("\t\t<type>%s</type>", file.type));
-                    writer.println(String.format("\t\t<name>%s</name>", file.name));
-                    writer.println(String.format("\t\t<version>%d</version>", file.version));
-                    writer.println(String.format("\t\t<userID>%s</userID>", file.changeUserID));
-                    writer.println(String.format("\t\t<changeGroup>%s</changeGroup>", file.changeGroup));
-                    writer.println(String.format("\t\t<editType>%s</editType>", editType));
-                    writer.println("\t</entry>");
+                    editType = (file.editType == null) ? "SAME" : file.editType.getName().toUpperCase();
+                    String entryText = String.format(entryTemplateString,
+                            SCLMFileState.dateToString(file.changeDate),
+                            file.project,
+                            file.alternate,
+                            file.group,
+                            file.type,
+                            file.name,
+                            file.version,
+                            file.changeUserID,
+                            file.changeGroup,
+                            editType);
+                    writer.println(entryText);
                 }
                 writer.println("</changelog>");
                 writer.close();
-            } else
-            {
-                this.createEmptyChangeLog(changelogFile,listener,"changelog");
+            } else {
+                this.createEmptyChangeLog(changelogFile, listener, "changelog");
             }
         }
     }
@@ -433,21 +436,15 @@ public class SCLMSCM  extends SCM {
     /**
      * Calculate revision from build. Dummy.
      *
-     * @param build Current build.
+     * @param build     Current build.
      * @param workspace Current workspace.
-     * @param launcher Current launcher.
-     * @param listener Current listener.
-     *
+     * @param launcher  Current launcher.
+     * @param listener  Current listener.
      * @return Actual revision.
-     *
-     * @throws IOException
-     * @throws InterruptedException
-     *
      * @see SCLMSCMRevisionState
      */
     @Override
-    public SCMRevisionState calcRevisionsFromBuild(@Nonnull Run<?,?> build, FilePath workspace, Launcher launcher, @Nonnull TaskListener listener) throws IOException, InterruptedException
-    {
+    public SCMRevisionState calcRevisionsFromBuild(@Nonnull Run<?, ?> build, FilePath workspace, Launcher launcher, @Nonnull TaskListener listener) {
         // Remove 'DELETED' files from revision.
         this.currentRevision.removeDeleted();
         return this.currentRevision;
@@ -456,6 +453,7 @@ public class SCLMSCM  extends SCM {
     /**
      * Get parser for changelog.xml
      * .
+     *
      * @return SCLMChangeLogParser instance.
      */
     @Override
@@ -470,7 +468,7 @@ public class SCLMSCM  extends SCM {
      */
     @Override
     public SCLMSCMDescriptor getDescriptor() {
-        return (SCLMSCMDescriptor)super.getDescriptor();
+        return (SCLMSCMDescriptor) super.getDescriptor();
     }
 
     /**
@@ -485,51 +483,51 @@ public class SCLMSCM  extends SCM {
         /**
          * Default job header.
          */
-        private static final String DefaultSCLMJobHeader =
+        private static final String DEFAULT_SCLM_JOB_HEADER =
                 "//JENKINS  JOB (ACCOUNT),'JENKINS',                             \n" +
-                "// MSGCLASS=A,CLASS=A,NOTIFY=&SYSUID";
+                        "// MSGCLASS=A,CLASS=A,NOTIFY=&SYSUID";
         /**
          * Default step for FLMCMD invocation.
          */
-        private static final String DefaultSCLMJobStep =
+        private static final String DEFAULT_SCLM_JOB_STEP =
                 "//SCLMEX   EXEC PGM=IKJEFT01,REGION=4096K,TIME=1439,DYNAMNBR=200\n" +
-                "//STEPLIB  DD DSN=ISP.SISPLPA,DISP=SHR                          \n" +
-                "//         DD DSN=ISP.SISPLOAD,DISP=SHR                         \n" +
-                "//ISPMLIB  DD DSN=ISP.SISPMENU,DISP=SHR                         \n" +
-                "//ISPSLIB  DD DSN=ISP.SISPSENU,DISP=SHR                         \n" +
-                "//         DD DSN=ISP.SISPSLIB,DISP=SHR                         \n" +
-                "//ISPPLIB  DD DSN=ISP.SISPPENU,DISP=SHR                         \n" +
-                "//ISPTLIB  DD UNIT=@TEMP0,DISP=(NEW,PASS),SPACE=(CYL,(1,1,5)),  \n" +
-                "//            DCB=(LRECL=80,BLKSIZE=19040,DSORG=PO,RECFM=FB),   \n" +
-                "//            DSN=                                              \n" +
-                "//         DD DSN=ISP.SISPTENU,DISP=SHR                         \n" +
-                "//ISPTABL  DD UNIT=@TEMP0,DISP=(NEW,PASS),SPACE=(CYL,(1,1,5)),  \n" +
-                "//            DCB=(LRECL=80,BLKSIZE=19040,DSORG=PO,RECFM=FB),   \n" +
-                "//            DSN=                                              \n" +
-                "//ISPPROF  DD UNIT=@TEMP0,DISP=(NEW,PASS),SPACE=(CYL,(1,1,5)),  \n" +
-                "//            DCB=(LRECL=80,BLKSIZE=19040,DSORG=PO,RECFM=FB),   \n" +
-                "//            DSN=                                              \n" +
-                "//ISPLOG   DD SYSOUT=*,                                         \n" +
-                "//            DCB=(LRECL=120,BLKSIZE=2400,DSORG=PS,RECFM=FB)    \n" +
-                "//ISPCTL1  DD DISP=NEW,UNIT=@TEMP0,SPACE=(CYL,(1,1)),           \n" +
-                "//            DCB=(LRECL=80,BLKSIZE=800,RECFM=FB)               \n" +
-                "//SYSTERM  DD SYSOUT=*                                          \n" +
-                "//SYSPROC  DD DSN=ISP.SISPCLIB,DISP=SHR                         \n" +
-                "//FLMMSGS  DD SYSOUT=(*)                                        \n" +
-                "//PASCERR  DD SYSOUT=(*)                                        \n" +
-                "//ZFLMDD   DD  *                                                \n" +
-                "   ZFLMNLST=FLMNLENU    ZFLMTRMT=ISR3278    ZDATEF=YY/MM/DD     \n" +
-                "/*                                                              \n" +
-                "//SYSPRINT DD SYSOUT=(*)                                        \n" +
-                "//SYSTSPRT DD SYSOUT=(*)";
-	    /**
-	     * Globally configured default job header.
-	     */
-	    private static String SCLMJobHeader = DefaultSCLMJobHeader;
-	    /**
+                        "//STEPLIB  DD DSN=ISP.SISPLPA,DISP=SHR                          \n" +
+                        "//         DD DSN=ISP.SISPLOAD,DISP=SHR                         \n" +
+                        "//ISPMLIB  DD DSN=ISP.SISPMENU,DISP=SHR                         \n" +
+                        "//ISPSLIB  DD DSN=ISP.SISPSENU,DISP=SHR                         \n" +
+                        "//         DD DSN=ISP.SISPSLIB,DISP=SHR                         \n" +
+                        "//ISPPLIB  DD DSN=ISP.SISPPENU,DISP=SHR                         \n" +
+                        "//ISPTLIB  DD UNIT=@TEMP0,DISP=(NEW,PASS),SPACE=(CYL,(1,1,5)),  \n" +
+                        "//            DCB=(LRECL=80,BLKSIZE=19040,DSORG=PO,RECFM=FB),   \n" +
+                        "//            DSN=                                              \n" +
+                        "//         DD DSN=ISP.SISPTENU,DISP=SHR                         \n" +
+                        "//ISPTABL  DD UNIT=@TEMP0,DISP=(NEW,PASS),SPACE=(CYL,(1,1,5)),  \n" +
+                        "//            DCB=(LRECL=80,BLKSIZE=19040,DSORG=PO,RECFM=FB),   \n" +
+                        "//            DSN=                                              \n" +
+                        "//ISPPROF  DD UNIT=@TEMP0,DISP=(NEW,PASS),SPACE=(CYL,(1,1,5)),  \n" +
+                        "//            DCB=(LRECL=80,BLKSIZE=19040,DSORG=PO,RECFM=FB),   \n" +
+                        "//            DSN=                                              \n" +
+                        "//ISPLOG   DD SYSOUT=*,                                         \n" +
+                        "//            DCB=(LRECL=120,BLKSIZE=2400,DSORG=PS,RECFM=FB)    \n" +
+                        "//ISPCTL1  DD DISP=NEW,UNIT=@TEMP0,SPACE=(CYL,(1,1)),           \n" +
+                        "//            DCB=(LRECL=80,BLKSIZE=800,RECFM=FB)               \n" +
+                        "//SYSTERM  DD SYSOUT=*                                          \n" +
+                        "//SYSPROC  DD DSN=ISP.SISPCLIB,DISP=SHR                         \n" +
+                        "//FLMMSGS  DD SYSOUT=(*)                                        \n" +
+                        "//PASCERR  DD SYSOUT=(*)                                        \n" +
+                        "//ZFLMDD   DD  *                                                \n" +
+                        "   ZFLMNLST=FLMNLENU    ZFLMTRMT=ISR3278    ZDATEF=YY/MM/DD     \n" +
+                        "/*                                                              \n" +
+                        "//SYSPRINT DD SYSOUT=(*)                                        \n" +
+                        "//SYSTSPRT DD SYSOUT=(*)";
+        /**
+         * Globally configured default job header.
+         */
+        private static String SCLMJobHeader = DEFAULT_SCLM_JOB_HEADER;
+        /**
          * Globally configured FLMCMD job step.
          */
-        private static String SCLMJobStep = DefaultSCLMJobStep;
+        private static String SCLMJobStep = DEFAULT_SCLM_JOB_STEP;
 
         /**
          * Dummy constructor.
@@ -538,16 +536,16 @@ public class SCLMSCM  extends SCM {
             super(SCLMSCM.class, null);
         }
 
-	    /**
+        /**
          * Get globally configured job header.
          *
          * @return <b><code>SCLMJobHeader</code></b>.
          */
         public String getSCLMJobHeader() {
             if (SCLMJobHeader.isEmpty())
-                return SCLMSCMDescriptor.DefaultSCLMJobHeader;
-	        else
-	            return SCLMJobHeader;
+                return SCLMSCMDescriptor.DEFAULT_SCLM_JOB_HEADER;
+            else
+                return SCLMJobHeader;
         }
 
         /**
@@ -555,13 +553,77 @@ public class SCLMSCM  extends SCM {
          *
          * @return <b><code>SCLMJobStep</code></b>.
          */
-        public String getSCLMJobStep()
-        {
-            if(SCLMJobStep.isEmpty())
-                return SCLMSCMDescriptor.DefaultSCLMJobStep;
+        public String getSCLMJobStep() {
+            if (SCLMJobStep.isEmpty())
+                return SCLMSCMDescriptor.DEFAULT_SCLM_JOB_STEP;
             else
                 return SCLMJobStep;
         }
+
+        public ListBoxModel doFillCredentialsIdItems(
+                @AncestorInPath Item item,
+                @QueryParameter String credentialsId) {
+            if (item == null) {
+                try {
+                    boolean admin = Jenkins.get().hasPermission(Jenkins.ADMINISTER);
+                    if (!admin) return new StandardListBoxModel().includeCurrentValue(credentialsId);
+                } catch (IllegalStateException ignored) {
+                }
+            } else {
+                if (!item.hasPermission(Item.EXTENDED_READ)
+                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return new StandardListBoxModel().includeCurrentValue(credentialsId);
+                }
+            }
+            return new StandardListBoxModel()
+                    .includeMatchingAs(
+                            item instanceof hudson.model.Queue.Task
+                                    ? Tasks.getAuthenticationOf((hudson.model.Queue.Task) item)
+                                    : ACL.SYSTEM,
+                            item,
+                            StandardUsernamePasswordCredentials.class,
+                            Collections.emptyList(),
+                            CredentialsMatchers.instanceOf(StandardUsernamePasswordCredentials.class));
+
+        }
+
+        /**
+         * @param value Current credentials (or expression/env variable).
+         * @return Whether creds are OK. Currently just check that it's set.
+         */
+        public FormValidation doCheckCredentialsId(
+                @AncestorInPath Item item,
+                @QueryParameter String value) {
+            if (item == null) {
+                if (!Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER)) {
+                    return FormValidation.ok();
+                }
+            } else {
+                if (!item.hasPermission(Item.EXTENDED_READ)
+                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return FormValidation.ok();
+                }
+            }
+            if (StringUtils.isBlank(value)) {
+
+                return FormValidation.ok();
+            }
+            if (value.startsWith("${") && value.endsWith("}")) {
+                return FormValidation.warning("Cannot validate expression based credentials");
+            }
+            List<DomainRequirement> domainRequirements = new ArrayList<>();
+            if (CredentialsProvider.listCredentials(
+                    StandardUsernamePasswordCredentials.class,
+                    item,
+                    item instanceof hudson.model.Queue.Task
+                            ? Tasks.getAuthenticationOf((Queue.Task) item)
+                            : ACL.SYSTEM, domainRequirements,
+                    CredentialsMatchers.withId(value)).isEmpty()) {
+                return FormValidation.error("Cannot find currently selected credentials");
+            }
+            return FormValidation.ok();
+        }
+
 
         /**
          * Get printable name.
@@ -576,25 +638,20 @@ public class SCLMSCM  extends SCM {
         /**
          * Configure action that is invoked from global settings.
          *
-         * @param req Request.
+         * @param req  Request.
          * @param json Parameters.
-         *
          * @return Whether everything was setup OK.
-         *
-         * @throws FormException
          */
         @Override
         public boolean configure(org.kohsuke.stapler.StaplerRequest req,
-                                 net.sf.json.JSONObject json)
-            throws FormException
-        {
+                                 net.sf.json.JSONObject json) {
             SCLMJobHeader = Util.fixEmptyAndTrim(req.getParameter("SCLMJobHeader"));
             if (SCLMJobHeader == null)
-                SCLMJobHeader = SCLMSCMDescriptor.DefaultSCLMJobHeader;
+                SCLMJobHeader = SCLMSCMDescriptor.DEFAULT_SCLM_JOB_HEADER;
             SCLMJobStep = Util.fixEmptyAndTrim(req.getParameter("SCLMJobStep"));
             if (SCLMJobStep == null)
-                SCLMJobStep = SCLMSCMDescriptor.DefaultSCLMJobStep;
-	        save();
+                SCLMJobStep = SCLMSCMDescriptor.DEFAULT_SCLM_JOB_STEP;
+            save();
             return true;
         }
     }

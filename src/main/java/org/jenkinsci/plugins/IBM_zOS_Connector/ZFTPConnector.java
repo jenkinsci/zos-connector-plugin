@@ -100,7 +100,7 @@ class ZFTPConnector {
      * @param JESINTERFACELEVEL1 Is FTP server configured for JESINTERFACELEVEL=1?
      * @param logPrefix          Log prefix.
      */
-    public ZFTPConnector(String server, int port, String userID, String password, boolean JESINTERFACELEVEL1, String logPrefix) {
+    ZFTPConnector(String server, int port, String userID, String password, boolean JESINTERFACELEVEL1, String logPrefix) {
         // Copy values
         this.server = server;
         this.port = port;
@@ -132,36 +132,38 @@ class ZFTPConnector {
      * @see ZFTPConnector#ZFTPConnector(String, int, String, String, boolean, String)
      */
     private boolean connect() {
-        // Perform the connection.
-        try {
-            int reply; // Temp value to contain server response.
+        if (!this.FTPClient.isConnected()) {
+            // Perform the connection.
+            try {
+                int reply; // Temp value to contain server response.
 
-            // Try to connect.
-            this.FTPClient.connect(this.server, this.port);
+                // Try to connect.
+                this.FTPClient.connect(this.server, this.port);
 
-            // After connection attempt, check the reply code to verify success.
-            reply = this.FTPClient.getReplyCode();
-            if (!FTPReply.isPositiveCompletion(reply)) {
-                // Bad reply code.
-                this.FTPClient.disconnect(); // Disconnect from LPAR.
-                this.err("FTP server refused connection."); // Print error.
-                return false; // Finish with failure.
-            }
-            this.log("FTP: connected to " + server + ":" + port);
-        }
-        // IOException handling
-        catch (IOException e) {
-            // Clos the connection if it's still opened.
-            if (this.FTPClient.isConnected()) {
-                try {
-                    this.FTPClient.disconnect();
-                } catch (IOException f) {
-                    // Do nothing
+                // After connection attempt, check the reply code to verify success.
+                reply = this.FTPClient.getReplyCode();
+                if (!FTPReply.isPositiveCompletion(reply)) {
+                    // Bad reply code.
+                    this.FTPClient.disconnect(); // Disconnect from LPAR.
+                    this.err("FTP server refused connection."); // Print error.
+                    return false; // Finish with failure.
                 }
+                this.log("FTP: connected to " + server + ":" + port);
             }
-            this.err("Could not connect to server.");
-            e.printStackTrace();
-            return false;
+            // IOException handling
+            catch (IOException e) {
+                // Close the connection if it's still open.
+                if (this.FTPClient.isConnected()) {
+                    try {
+                        this.FTPClient.disconnect();
+                    } catch (IOException f) {
+                        // Do nothing
+                    }
+                }
+                this.err("Could not connect to server.");
+                e.printStackTrace();
+                return false;
+            }
         }
         // Finally, return with success.
         return true;
@@ -177,9 +179,8 @@ class ZFTPConnector {
      */
     private boolean logon() {
         // Check whether we are already connected. If not, try to reconnect.
-        if (!this.FTPClient.isConnected())
-            if (!this.connect())
-                return false; // Couldn't connect to the server. Can't check the credentials.
+        if (!this.connect())
+            return false; // Couldn't connect to the server. Can't check the credentials.
 
         // Perform the login process.
         try {
@@ -233,7 +234,6 @@ class ZFTPConnector {
      * @param deleteLogFromSpool Whether the job log should be deleted fro spool upon job end.
      * @return Whether the job was successfully submitted and the job log was fetched.
      * <br><b><code>jobCC</code></b> holds the response of the operation (including errors).
-     * @see ZFTPConnector#connect()
      * @see ZFTPConnector#logon()
      * @see ZFTPConnector#waitForCompletion(OutputStream)
      * @see ZFTPConnector#deleteJobLog()
@@ -247,11 +247,10 @@ class ZFTPConnector {
         this.jobCC = "";
 
         // Verify connection.
-        if (!this.FTPClient.isConnected())
-            if (!this.logon()) {
-                this.jobCC = "COULD_NOT_CONNECT";
-                return false;
-            }
+        if (!this.logon()) {
+            this.jobCC = "COULD_NOT_CONNECT";
+            return false;
+        }
 
         this.FTPClient.enterLocalPassiveMode();
 
@@ -351,11 +350,10 @@ class ZFTPConnector {
      */
     private boolean checkJobAvailability() {
         // Verify connection.
-        if (!this.FTPClient.isConnected())
-            if (!this.logon()) {
-                this.jobCC = "FETCH_LOG_ERROR_LOGIN";
-                return false;
-            }
+        if (!this.logon()) {
+            this.jobCC = "FETCH_LOG_ERROR_LOGIN";
+            return false;
+        }
 
         this.FTPClient.enterLocalPassiveMode();
 
@@ -384,11 +382,10 @@ class ZFTPConnector {
      */
     private boolean fetchJobLog(OutputStream outputStream) {
         // Verify connection.
-        if (!this.FTPClient.isConnected())
-            if (!this.logon()) {
-                this.jobCC = "FETCH_LOG_ERROR_LOGIN";
-                return false;
-            }
+        if (!this.logon()) {
+            this.jobCC = "FETCH_LOG_ERROR_LOGIN";
+            return false;
+        }
 
         this.FTPClient.enterLocalPassiveMode();
 
@@ -419,10 +416,9 @@ class ZFTPConnector {
 
         this.jobCC = "COULD_NOT_RETRIEVE_JOB_RC";
         // Verify connection.
-        if (!this.FTPClient.isConnected())
-            if (!this.logon()) {
-                return false;
-            }
+        if (!this.logon()) {
+            return false;
+        }
 
         this.FTPClient.enterLocalPassiveMode();
 
@@ -479,10 +475,9 @@ class ZFTPConnector {
      */
     private void deleteJobLog() {
         // Verify connection.
-        if (!this.FTPClient.isConnected())
-            if (!this.logon()) {
-                return;
-            }
+        if (!this.logon()) {
+            return;
+        }
 
         this.FTPClient.enterLocalPassiveMode();
 
