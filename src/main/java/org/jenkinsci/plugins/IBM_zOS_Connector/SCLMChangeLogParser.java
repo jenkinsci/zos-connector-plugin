@@ -33,8 +33,6 @@ public class SCLMChangeLogParser extends ChangeLogParser {
      *
      * @return SCLMChangeLogSet from changelog.xml.
      *
-     * @throws IOException
-     * @throws SAXException
      */
     @Override
     public SCLMChangeLogSet parse(Run build, RepositoryBrowser<?> browser,

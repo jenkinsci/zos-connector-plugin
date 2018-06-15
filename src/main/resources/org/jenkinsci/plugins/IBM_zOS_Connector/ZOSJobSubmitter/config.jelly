@@ -1,41 +1,39 @@
 <?jelly escape-by-default='true'?>
-<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-  <f:entry title="Server" field="server">
-    <f:textbox value="${it.getServer()}"/>
-  </f:entry>
-  <f:entry  field="port" title="Port">
-    <f:textbox default="21" value="${it.getPort()}"/>
-  </f:entry>
-  <f:entry field="userID" title="Username">
-    <f:textbox value="${it.getUsername()}"/>
-  </f:entry>
-  <f:entry field="password" title="Password">
-    <f:password value="${it.getPassword()}"/>
-  </f:entry>
-  <f:entry field="job" title="Job">
-    <f:textarea value="${it.getJob()}"/>
-  </f:entry>
-  <f:block>
-    <table style="width:100%">
-      <f:optionalBlock inline="true" field="wait" title="Wait for completion?" checked="${it.getWait()}">
-        <f:entry field="waitTime" title="Time to wait (in minutes)" description="0 = wait forever">
-          <f:textbox default="0" value="${it.getWaitTime()}"/>
-        </f:entry>
-        <f:entry field="deleteJobFromSpool" title="Delete job log from Spool?">
-          <f:checkbox default="false" value="${it.getDeleteJobFromSpool()}"/>
-        </f:entry>
-        <f:entry field="jobLogToConsole" title="Print joblog to Console output?">
-          <f:checkbox default="false" value="${it.getJobLogToConsole()}"/>
-        </f:entry>
-        <f:entry field="MaxCC" title="MaxCC" description='Default or empty = "0000"'>
-          <f:textbox value="${it.getMaxCC()}" default=""/>
-        </f:entry>
-      </f:optionalBlock>
-    </table>
-  </f:block>
-  <f:advanced>
-    <f:entry field="JESINTERFACELEVEL1" title="JESINTERFACELEVEL=1?" description="Check if FTP server is configured with JESINTERFACELEVEL=1">
-      <f:checkbox checked="${it.getJESINTERFACELEVEL1()}"/>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form" xmlns:c="/lib/credentials">
+    <f:entry title="Server" field="server">
+        <f:textbox value="${it.getServer()}"/>
     </f:entry>
-  </f:advanced>
+    <f:entry field="port" title="Port">
+        <f:textbox default="21" value="${it.getPort()}"/>
+    </f:entry>
+    <f:entry field="credentialsId" title="${%Credentials}">
+        <c:select/>
+    </f:entry>
+    <f:entry field="jobFile" title="Job file">
+        <f:textbox value="${it.getJobFile()}"/>
+    </f:entry>
+    <f:block>
+        <table style="width:100%">
+            <f:optionalBlock inline="true" field="wait" title="Wait for completion?" checked="${it.getWait()}">
+                <f:entry field="waitTime" title="Time to wait (in minutes)" description="0 = wait forever">
+                    <f:textbox default="0" value="${it.getWaitTime()}"/>
+                </f:entry>
+                <f:entry field="deleteJobFromSpool" title="Delete job log from Spool?">
+                    <f:checkbox default="false" value="${it.getDeleteJobFromSpool()}"/>
+                </f:entry>
+                <f:entry field="jobLogToConsole" title="Print joblog to Console output?">
+                    <f:checkbox default="false" value="${it.getJobLogToConsole()}"/>
+                </f:entry>
+                <f:entry field="MaxCC" title="MaxCC" description='Default or empty = "0000"'>
+                    <f:textbox value="${it.getMaxCC()}" default=""/>
+                </f:entry>
+            </f:optionalBlock>
+        </table>
+    </f:block>
+    <f:advanced>
+        <f:entry field="JESINTERFACELEVEL1" title="JESINTERFACELEVEL=1?"
+                 description="Check if FTP server is configured with JESINTERFACELEVEL=1">
+            <f:checkbox checked="${it.getJESINTERFACELEVEL1()}"/>
+        </f:entry>
+    </f:advanced>
 </j:jelly>

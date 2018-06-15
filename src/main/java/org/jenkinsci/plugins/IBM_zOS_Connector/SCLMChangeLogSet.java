@@ -13,12 +13,11 @@ import java.util.*;
 
 /**
  * <h1>SCLMChangeLogSet</h1>
- *
+ * <p>
  * ChangeLogSet for SCLMSCM.
+ *
  * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>
- *
  * @version 1.0
- *
  * @see ChangeLogSet
  */
 public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
@@ -32,17 +31,17 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
     /**
      * Dummy constructor.
      *
-     * @param run Current Run.
+     * @param run     Current Run.
      * @param browser Current Repository Browser.
      */
-    protected SCLMChangeLogSet(Run<?,?> run, RepositoryBrowser<?> browser)
-    {
-        super(run,browser);
-        this.items = new LinkedList<Entry>();
+    SCLMChangeLogSet(Run<?, ?> run, RepositoryBrowser<?> browser) {
+        super(run, browser);
+        this.items = new LinkedList<>();
     }
 
     /**
      * Get SCM kind.
+     *
      * @return "SCLM".
      */
     @Exported
@@ -52,28 +51,24 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
 
     /**
      * Construct SCLMChangeLogSet from LogSet.
-     * @param logSet LogSet.
      *
+     * @param logSet LogSet.
      * @see LogSet
      */
-    public void fromLogSet (LogSet logSet)
-    {
+    public void fromLogSet(LogSet logSet) {
         // Init entries list.
-        this.items = new LinkedList<Entry>();
+        this.items = new LinkedList<>();
         // Copy entries.
-        if(logSet.entries != null) {
-            for (LogSet.Entry ent : logSet.entries) {
-                this.items.add(new Entry(ent));
-            }
+        if (logSet.entries != null) {
+            logSet.entries.forEach(ent -> this.items.add(new Entry(ent)));
         }
         // Set parent.
-        for (Entry e : this.items) {
-            e.setParent(this);
-        }
+        this.items.forEach(e -> e.setParent(this));
     }
 
     /**
      * Check if have no info.
+     *
      * @return Whether there is no info.
      */
     @Override
@@ -87,7 +82,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
      * @return Iterator for entries (most recent come first).
      */
     public Iterator iterator() {
-        Collections.sort(this.items, Entry.entryComparator);
+        this.items.sort(Entry.entryComparator);
         return this.items.iterator();
     }
 
@@ -102,17 +97,15 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
 
     /**
      * <h1>Entry</h1>
-     *
+     * <p>
      * Entry for SCLMChangeLogSet.
      *
      * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>
-     *
      * @version 1.0
-     *
      * @see SCLMChangeLogSet
      * @see SCLMAffectedFile
      */
-    @ExportedBean(defaultVisibility=999)
+    @ExportedBean(defaultVisibility = 999)
     public static class Entry extends ChangeLogSet.Entry {
         /**
          * Affected file.
@@ -132,60 +125,47 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
 
         /**
          * Construct entry from LogSet.Entry.
+         *
          * @param e LogSet.Entry.
          */
-        public Entry (LogSet.Entry e)
-        {
+        Entry(LogSet.Entry e) {
             this.affectedFile = new SCLMAffectedFile(e.affectedFile);
         }
 
         /**
          * Set parent.
+         *
          * @param set New parent.
          */
         @Override
-        public void setParent(ChangeLogSet set)
-        {
+        public void setParent(ChangeLogSet set) {
             this.parent = (SCLMChangeLogSet) set;
         }
 
         /**
          * Get current parent.
+         *
          * @return Current parent.
          */
         @Override
-        public SCLMChangeLogSet getParent()
-        {
+        public SCLMChangeLogSet getParent() {
             return this.parent;
         }
 
         /**
          * Get entry message.
+         *
          * @return Message for entry.
          */
         @Override
         public String getMsg() {
-            String editType;
-            if(this.affectedFile.getEditType() == EditType.ADD) {
-                editType = "ADD";
-            } else {
-                if(this.affectedFile.getEditType() == EditType.EDIT) {
-                    editType = "EDIT";
-                } else {
-                    if(this.affectedFile.getEditType() == EditType.DELETE) {
-                        editType = "DELETE";
-                    } else {
-                        editType = "ERROR?";
-                    }
-                }
-            }
-            return editType + ": " + this.affectedFile.getPath();
+            return this.affectedFile.getEditType().getName().toUpperCase() + ": " + this.affectedFile.getPath();
         }
 
         /**
          * Get EditType of the entry.
-         * @return EditType.
          *
+         * @return EditType.
          * @see EditType
          */
         public EditType getEditType() {
@@ -206,9 +186,8 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
          *
          * @return AffectedFile.
          */
-        public LinkedList<AffectedFile> getItems()
-        {
-            LinkedList<AffectedFile> res = new LinkedList<AffectedFile>();
+        public LinkedList<AffectedFile> getItems() {
+            LinkedList<AffectedFile> res = new LinkedList<>();
             res.add(this.affectedFile);
             return res;
         }
@@ -229,8 +208,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
          * @return AffectedFile version.
          */
         @Exported
-        public String getVersion()
-        {
+        public String getVersion() {
             return String.valueOf(this.affectedFile.file.version);
         }
 
@@ -241,7 +219,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
          */
         @Override
         public Collection<String> getAffectedPaths() {
-            LinkedList<String> res = new LinkedList<String>();
+            LinkedList<String> res = new LinkedList<>();
             res.add(this.affectedFile.file.getPath());
             return res;
         }
@@ -268,30 +246,23 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
         /**
          * Comparator for Entries. Based on SCLMFileState comparator.
          */
-        public static final Comparator<Entry> entryComparator = new Comparator<Entry>() {
-            @Override
-            public int compare(Entry o1, Entry o2) {
-                return SCLMAffectedFile.affectedFilesComparator.compare(o1.affectedFile, o2.affectedFile);
-            }
-        };
+        static final Comparator<Entry> entryComparator = (o1, o2) ->
+                SCLMAffectedFile.affectedFilesComparator.compare(o1.affectedFile, o2.affectedFile);
 
     }
 
     /**
      * <h1>SCLMAffectedFile</h1>
-     *
+     * <p>
      * Affected File info.
      *
      * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>
-     *
      * @version 1.0
-     *
      * @see SCLMChangeLogSet
      * @see Entry
      */
     @Extension
-    public static class SCLMAffectedFile implements AffectedFile
-    {
+    public static class SCLMAffectedFile implements AffectedFile {
         /**
          * SCLM file.
          */
@@ -302,16 +273,14 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
          *
          * @param file LogSet.AffectedFile to be copied.
          */
-        public SCLMAffectedFile(LogSet.AffectedFile file)
-        {
+        SCLMAffectedFile(LogSet.AffectedFile file) {
             this.file = file.file;
         }
 
         /**
          * Dummy constructor.
          */
-        public SCLMAffectedFile()
-        {
+        public SCLMAffectedFile() {
             this.file = new SCLMFileState();
         }
 
@@ -326,6 +295,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
 
         /**
          * Get EditType.
+         *
          * @return EditType of the file.
          */
         public EditType getEditType() {
@@ -335,11 +305,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
         /**
          * Comparator based on SCLMFileState comparator.
          */
-        public static final Comparator<SCLMAffectedFile> affectedFilesComparator = new Comparator<SCLMAffectedFile>() {
-            @Override
-            public int compare(SCLMAffectedFile o1, SCLMAffectedFile o2) {
-                return SCLMFileState.changeComparator.compare(o1.file, o2.file);
-            }
-        };
+        public static final Comparator<SCLMAffectedFile> affectedFilesComparator = (o1, o2) ->
+                SCLMFileState.changeComparator.compare(o1.file, o2.file);
     }
 }

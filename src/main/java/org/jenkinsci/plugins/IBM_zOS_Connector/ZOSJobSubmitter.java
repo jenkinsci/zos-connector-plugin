@@ -1,21 +1,30 @@
 package org.jenkinsci.plugins.IBM_zOS_Connector;
 
+import com.cloudbees.plugins.credentials.CredentialsMatchers;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import hudson.*;
 import hudson.model.*;
+import hudson.model.queue.Tasks;
+import hudson.security.ACL;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
+import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
+import org.apache.commons.lang.StringUtils;
+import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.annotation.Nonnull;
-import javax.servlet.ServletException;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.Charset;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.logging.Logger;
 
 /**
@@ -39,13 +48,9 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      */
     private int port;
     /**
-     * UserID.
+     * Credentials id to be converted to login+pw.
      */
-    private String userID;
-    /**
-     * User password.
-     */
-    private String password;
+    private String credentialsId;
     /**
      * Whether need to wait for the job completion.
      */
@@ -67,9 +72,9 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      */
     private int waitTime;
     /**
-     * JCL of the job to be submitted.
+     * Path to local file with JCL text of the job to be submitted.
      */
-    private String job;
+    private String jobFile;
     /**
      * MaxCC to decide that job ended OK.
      */
@@ -78,41 +83,39 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
     /**
      * Constructor. Invoked when 'Apply' or 'Save' button is pressed on the project configuration page.
      *
+     * @param MaxCC              Maximum allowed CC for job to be considered OK.
      * @param server             LPAR name or IP address.
      * @param port               FTP port to connect to.
-     * @param userID             UserID.
-     * @param password           User password.
+     * @param credentialsId      Credentials id..
      * @param wait               Whether we need to wait for the job completion.
      * @param waitTime           Maximum wait time. If set to <code>0</code> will wait forever.
      * @param deleteJobFromSpool Whether the job log will be deleted from the spool after end.
      * @param jobLogToConsole    Whether the job log will be printed to console.
-     * @param job                JCL of the job to be submitted.
+     * @param jobFile            File with JCL of the job to be submitted.
      * @param JESINTERFACELEVEL1 Is FTP server configured for JESINTERFACELEVEL=1?
      */
     @DataBoundConstructor
     public ZOSJobSubmitter(
             String server,
             int port,
-            String userID,
-            String password,
+            String credentialsId,
             boolean wait,
             int waitTime,
             boolean deleteJobFromSpool,
             boolean jobLogToConsole,
-            String job,
+            String jobFile,
             String MaxCC,
             boolean JESINTERFACELEVEL1) {
         // Copy values
         this.server = server.replaceAll("\\s", "");
         this.port = port;
-        this.userID = userID.replaceAll("\\s", "");
-        this.password = password.replaceAll("\\s", "");
+        this.credentialsId = credentialsId;
         this.wait = wait;
         this.waitTime = waitTime;
         this.JESINTERFACELEVEL1 = JESINTERFACELEVEL1;
         this.deleteJobFromSpool = deleteJobFromSpool;
         this.jobLogToConsole = jobLogToConsole;
-        this.job = job;
+        this.jobFile = jobFile;
         if (MaxCC == null || MaxCC.isEmpty()) {
             this.MaxCC = "0000";
         } else {
@@ -135,12 +138,11 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      * @see ZFTPConnector
      */
     @Override
-    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws InterruptedException, IOException {
+    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener)
+            throws IOException, InterruptedException {
         // variables to be expanded
         String _server = this.server;
-        String _userID = this.userID;
-        String _password = this.password;
-        String _job = this.job;
+        String _jobFile = this.jobFile;
         String _MaxCC = this.MaxCC;
 
         String logPrefix = run.getParent().getDisplayName() + " " + run.getId() + ": ";
@@ -148,27 +150,39 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
             logger.info(logPrefix + "will expand variables");
             EnvVars environment = run.getEnvironment(listener);
             _server = environment.expand(_server);
-            _userID = environment.expand(_userID);
-            _password = environment.expand(_password);
-            _job = environment.expand(_job);
+            _jobFile = environment.expand(_jobFile);
             _MaxCC = environment.expand(_MaxCC);
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             throw new AbortException(e.getMessage());
         }
 
-        // Get connector.
-        ZFTPConnector zFTPConnector = new ZFTPConnector(_server,
-                this.port,
-                _userID,
-                _password,
-                this.JESINTERFACELEVEL1,
-                logPrefix);
+        // Get login + pw.
+        DomainRequirement domain = new DomainRequirement();
+        StandardUsernamePasswordCredentials creds = CredentialsProvider.findCredentialById(credentialsId,
+                StandardUsernamePasswordCredentials.class,
+                run, domain);
+        if (creds == null) {
+            throw new AbortException("Cannot resolve credentials: " + credentialsId);
+        }
+
         // Read the JCL.
-        InputStream inputStream = new ByteArrayInputStream(_job.getBytes(Charset.defaultCharset()));
+        InputStream inputStream;
+        try {
+            inputStream = workspace.child(_jobFile).read();
+        } catch (FileNotFoundException e) {
+            throw new AbortException("Job file not found: ./" + _jobFile);
+        }
         // Prepare the output stream.
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
+        // Get connector.
+        ZFTPConnector zFTPConnector = new ZFTPConnector(_server,
+                this.port,
+                creds.getUsername(),
+                creds.getPassword().getPlainText(),
+                this.JESINTERFACELEVEL1,
+                logPrefix);
         // Submit the job.
         boolean result = zFTPConnector.submit(inputStream, this.wait, this.waitTime, outputStream, this.deleteJobFromSpool, listener);
 
@@ -200,7 +214,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
 
         // If wait was requested try to save the job log.
         if (this.wait) {
-            if (this.jobLogToConsole){
+            if (this.jobLogToConsole) {
                 listener.getLogger().println(outputStream.toString("US-ASCII"));
             }
             // Save the log.
@@ -248,21 +262,17 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
     }
 
     /**
-     * Get UserID.
-     *
-     * @return <b><code>userID</code></b>
+     * @return credentials id provided.
      */
-    public String getUserID() {
-        return this.userID;
+    public String getCredentialsId() {
+        return credentialsId;
     }
 
     /**
-     * Get User Password.
-     *
-     * @return <b><code>password</code></b>
+     * @return job file provided.
      */
-    public String getPassword() {
-        return this.password;
+    public String getJobFile() {
+        return jobFile;
     }
 
     /**
@@ -310,14 +320,6 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         return this.waitTime;
     }
 
-    /**
-     * Get Job.
-     *
-     * @return <b><code>Job</code></b>
-     */
-    public String getJob() {
-        return this.job;
-    }
 
     /**
      * @return <b><code>MaxCC of the job to be considered OK</code></b>
@@ -357,56 +359,85 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
          *
          * @param value Current server.
          * @return Whether server name looks OK.
-         * @throws IOException
-         * @throws ServletException
          */
-        public FormValidation doCheckServer(@QueryParameter String value)
-                throws IOException, ServletException {
+        public FormValidation doCheckServer(@QueryParameter String value) {
             if (value.length() == 0)
                 return FormValidation.error("Please set a server");
             return FormValidation.ok();
         }
 
+
+        public ListBoxModel doFillCredentialsIdItems(
+                @AncestorInPath Item item,
+                @QueryParameter String credentialsId) {
+            if (item == null) {
+                try {
+                    boolean admin = Jenkins.get().hasPermission(Jenkins.ADMINISTER);
+                    if (!admin) return new StandardListBoxModel().includeCurrentValue(credentialsId);
+                } catch (IllegalStateException ignored) {
+                }
+            } else {
+                if (!item.hasPermission(Item.EXTENDED_READ)
+                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return new StandardListBoxModel().includeCurrentValue(credentialsId);
+                }
+            }
+            return new StandardListBoxModel()
+                    .includeMatchingAs(
+                            item instanceof Queue.Task
+                                    ? Tasks.getAuthenticationOf((Queue.Task) item)
+                                    : ACL.SYSTEM,
+                            item,
+                            StandardUsernamePasswordCredentials.class,
+                            Collections.emptyList(),
+                            CredentialsMatchers.instanceOf(StandardUsernamePasswordCredentials.class));
+
+        }
+
         /**
-         * Function for validation of 'User ID' field on project configuration page
-         *
-         * @param value Current userID.
-         * @return Whether userID looks OK.
-         * @throws IOException
-         * @throws ServletException
+         * @param value Current credentials (or expression/env variable).
+         * @return Whether creds are OK. Currently just check that it's set.
          */
-        public FormValidation doCheckUsername(@QueryParameter String value)
-                throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set a username");
+        public FormValidation doCheckCredentialsId(
+                @AncestorInPath Item item,
+                @QueryParameter String value) {
+            if (item == null) {
+                if (!Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER)) {
+                    return FormValidation.ok();
+                }
+            } else {
+                if (!item.hasPermission(Item.EXTENDED_READ)
+                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
+                    return FormValidation.ok();
+                }
+            }
+            if (StringUtils.isBlank(value)) {
+
+                return FormValidation.ok();
+            }
+            if (value.startsWith("${") && value.endsWith("}")) {
+                return FormValidation.warning("Cannot validate expression based credentials");
+            }
+            List<DomainRequirement> domainRequirements = new ArrayList<>();
+            if (CredentialsProvider.listCredentials(
+                    StandardUsernamePasswordCredentials.class,
+                    item,
+                    item instanceof Queue.Task
+                            ? Tasks.getAuthenticationOf((Queue.Task) item)
+                            : ACL.SYSTEM, domainRequirements,
+                    CredentialsMatchers.withId(value)).isEmpty()) {
+                return FormValidation.error("Cannot find currently selected credentials");
+            }
             return FormValidation.ok();
         }
 
         /**
-         * Function for validation of 'Password' field on project configuration page
+         * Function for validation of 'Job file' field on project configuration page
          *
-         * @param value Current password.
-         * @return Whether password looks OK.
-         * @throws IOException
-         * @throws ServletException
-         */
-        public FormValidation doCheckPassword(@QueryParameter String value)
-                throws IOException, ServletException {
-            if (value.length() == 0)
-                return FormValidation.error("Please set a password");
-            return FormValidation.ok();
-        }
-
-        /**
-         * Function for validation of 'Job' field on project configuration page
-         *
-         * @param value Current job.
+         * @param value Current job file.
          * @return Whether job looks OK.
-         * @throws IOException
-         * @throws ServletException
          */
-        public FormValidation doCheckInput(@QueryParameter String value)
-                throws IOException, ServletException {
+        public FormValidation doCheckJobFIle(@QueryParameter String value) {
             if (value.length() == 0)
                 return FormValidation.error("Please set an input");
             return FormValidation.ok();
@@ -417,11 +448,8 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
          *
          * @param value Current wait time.
          * @return Whether wait time looks OK.
-         * @throws IOException
-         * @throws ServletException
          */
-        public FormValidation doCheckWaitTime(@QueryParameter String value)
-                throws IOException, ServletException {
+        public FormValidation doCheckWaitTime(@QueryParameter String value) {
             if (!value.matches("\\d*"))
                 return FormValidation.error("Value must be numeric");
             if (Integer.parseInt(value) < 0)
@@ -429,8 +457,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
             return FormValidation.ok();
         }
 
-        public FormValidation doCheckMaxCC(@QueryParameter String value)
-                throws IOException, ServletException {
+        public FormValidation doCheckMaxCC(@QueryParameter String value) {
             if (!value.matches("(\\d{1,4})|(\\s*)"))
                 return FormValidation.error("Value must be 4 decimal digits or empty");
             return FormValidation.ok();
@@ -454,7 +481,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
          * @return Printable name for project configuration page.
          */
         public String getDisplayName() {
-            return "Submit zOS Job";
+            return "Submit z/OS job";
         }
     }
 }
