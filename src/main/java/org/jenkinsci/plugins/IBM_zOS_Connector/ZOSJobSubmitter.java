@@ -196,20 +196,25 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         // Print the info about the job
         logger.info("Job [" + zFTPConnector.getJobID() + "] processing finished.");
         StringBuilder reportBuilder = new StringBuilder();
-        reportBuilder.append("Job [");
-        reportBuilder.append(zFTPConnector.getJobID());
-        reportBuilder.append("] processing ");
-        if (!printableCC.matches("\\d+")) {
-            if (printableCC.startsWith("ABEND")) {
-                reportBuilder.append("ABnormally ENDed. ABEND code = [");
+        reportBuilder.append("Job [")
+                .append(zFTPConnector.getJobID())
+                .append("] processing ");
+        if (this.wait) {
+            if (!printableCC.matches("\\d+")) {
+                if (printableCC.startsWith("ABEND")) {
+                    reportBuilder.append("ABnormally ENDed. ABEND code = [");
+                } else {
+                    reportBuilder.append("failed. Reason: [");
+                }
             } else {
-                reportBuilder.append("failed. Reason: [");
+                reportBuilder.append("finished. Captured RC = [");
             }
+            reportBuilder
+                    .append(printableCC)
+                    .append("]");
         } else {
-            reportBuilder.append("finished. Captured RC = [");
+            reportBuilder.append("finished. Skip waiting.");
         }
-        reportBuilder.append(printableCC);
-        reportBuilder.append("]");
         listener.getLogger().println(reportBuilder.toString());
 
         // If wait was requested try to save the job log.
