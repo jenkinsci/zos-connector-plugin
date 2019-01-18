@@ -144,6 +144,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         String _server = this.server;
         String _jobFile = this.jobFile;
         String _MaxCC = this.MaxCC;
+        String inputJCL = "";
 
         String logPrefix = run.getParent().getDisplayName() + " " + run.getId() + ": ";
         try {
@@ -152,6 +153,14 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
             _server = environment.expand(_server);
             _jobFile = environment.expand(_jobFile);
             _MaxCC = environment.expand(_MaxCC);
+            // Read the JCL + expand.
+            try {
+                inputJCL = workspace.child(_jobFile).readToString();
+            } catch (FileNotFoundException e) {
+                throw new AbortException("Job file not found: ./" + _jobFile);
+            }
+            inputJCL = environment.expand(inputJCL);
+
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
             throw new AbortException(e.getMessage());
@@ -166,14 +175,8 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
             throw new AbortException("Cannot resolve credentials: " + credentialsId);
         }
 
-        // Read the JCL.
-        InputStream inputStream;
-        try {
-            inputStream = workspace.child(_jobFile).read();
-        } catch (FileNotFoundException e) {
-            throw new AbortException("Job file not found: ./" + _jobFile);
-        }
-        // Prepare the output stream.
+        // Prepare the input and output stream.
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(inputJCL.getBytes("UTF-8"));
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         // Get connector.
