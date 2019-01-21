@@ -588,6 +588,7 @@ public class SCLMSCM extends SCM {
         }
 
         /**
+         * @param item configuration entity to use permissions from.
          * @param value Current credentials (or expression/env variable).
          * @return Whether creds are OK. Currently just check that it's set.
          */
