@@ -9,6 +9,7 @@ import hudson.scm.RepositoryBrowser;
 import org.kohsuke.stapler.export.Exported;
 import org.kohsuke.stapler.export.ExportedBean;
 
+import javax.annotation.Nonnull;
 import java.util.*;
 
 /**
@@ -81,6 +82,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
      *
      * @return Iterator for entries (most recent come first).
      */
+    @Nonnull
     public Iterator iterator() {
         this.items.sort(Entry.entryComparator);
         return this.items.iterator();
@@ -199,7 +201,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
          */
         @Override
         public User getAuthor() {
-            return User.get(this.affectedFile.file.changeUserID);
+            return User.getOrCreateByIdOrFullName(this.affectedFile.file.changeUserID);
         }
 
         /**
