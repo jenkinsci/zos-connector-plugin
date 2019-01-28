@@ -132,38 +132,42 @@ class ZFTPConnector {
      * @see ZFTPConnector#ZFTPConnector(String, int, String, String, boolean, String)
      */
     private boolean connect() {
-        if (!this.FTPClient.isConnected()) {
-            // Perform the connection.
-            try {
-                int reply; // Temp value to contain server response.
+        // 1. Disconnect and ignore error.
+        try {
+            this.FTPClient.disconnect();
+        } catch (IOException ignored) {
 
-                // Try to connect.
-                this.FTPClient.connect(this.server, this.port);
+        }
+        // Perform the connection.
+        try {
+            int reply; // Temp value to contain server response.
 
-                // After connection attempt, check the reply code to verify success.
-                reply = this.FTPClient.getReplyCode();
-                if (!FTPReply.isPositiveCompletion(reply)) {
-                    // Bad reply code.
-                    this.FTPClient.disconnect(); // Disconnect from LPAR.
-                    this.err("FTP server refused connection."); // Print error.
-                    return false; // Finish with failure.
-                }
-                this.log("FTP: connected to " + server + ":" + port);
+            // Try to connect.
+            this.FTPClient.connect(this.server, this.port);
+
+            // After connection attempt, check the reply code to verify success.
+            reply = this.FTPClient.getReplyCode();
+            if (!FTPReply.isPositiveCompletion(reply)) {
+                // Bad reply code.
+                this.FTPClient.disconnect(); // Disconnect from LPAR.
+                this.err("FTP server refused connection."); // Print error.
+                return false; // Finish with failure.
             }
-            // IOException handling
-            catch (IOException e) {
-                // Close the connection if it's still open.
-                if (this.FTPClient.isConnected()) {
-                    try {
-                        this.FTPClient.disconnect();
-                    } catch (IOException f) {
-                        // Do nothing
-                    }
+            this.log("FTP: connected to " + server + ":" + port);
+        }
+        // IOException handling
+        catch (IOException e) {
+            // Close the connection if it's still open.
+            if (this.FTPClient.isConnected()) {
+                try {
+                    this.FTPClient.disconnect();
+                } catch (IOException f) {
+                    // Do nothing
                 }
-                this.err("Could not connect to server.");
-                e.printStackTrace();
-                return false;
             }
+            this.err("Could not connect to server.");
+            e.printStackTrace();
+            return false;
         }
         // Finally, return with success.
         return true;
@@ -178,6 +182,12 @@ class ZFTPConnector {
      * @see ZFTPConnector#connect()
      */
     private boolean logon() {
+        // 1. log out, ignore error
+        try {
+            this.FTPClient.logout();
+        } catch (IOException ignored) {
+        }
+
         // Check whether we are already connected. If not, try to reconnect.
         if (!this.connect())
             return false; // Couldn't connect to the server. Can't check the credentials.
@@ -210,13 +220,35 @@ class ZFTPConnector {
                     // do nothing
                 }
             }
-            this.err("Could not connect to server.");
+            this.err("Could not logon to server.");
             e.printStackTrace();
             return false;
         }
 
         // If go here, everything went fine.
         return true;
+    }
+
+    /**
+     * Try logging oou of the FTP server.
+     * This will not fail at all - instead if the next logon attempt fails you will see something more accurate.
+     */
+    private void disconnect() {
+        try {
+            if (!this.FTPClient.logout()) {
+                this.err("Failed to log out from FTP server");
+            }
+        } catch (IOException e) {
+            this.err("Failed to log out from FTP server");
+            e.printStackTrace();
+        } finally {
+            try {
+                this.FTPClient.disconnect();
+            } catch (IOException e) {
+                this.err("Failed to disconnect from FTP server");
+                e.printStackTrace();
+            }
+        }
     }
 
     boolean submit(InputStream inputStream, boolean wait, int waitTime, OutputStream outputStream, boolean deleteLogFromSpool, TaskListener taskListener) {
@@ -248,6 +280,7 @@ class ZFTPConnector {
 
         // Verify connection.
         if (!this.logon()) {
+            this.disconnect();
             this.jobCC = "COULD_NOT_CONNECT";
             return false;
         }
@@ -278,6 +311,8 @@ class ZFTPConnector {
             e.printStackTrace();
             this.jobCC = "IO_ERROR";
             return false;
+        } finally {
+            this.disconnect();
         }
 
         if (wait) {
@@ -351,7 +386,8 @@ class ZFTPConnector {
     private boolean checkJobAvailability() {
         // Verify connection.
         if (!this.logon()) {
-            this.jobCC = "FETCH_LOG_ERROR_LOGIN";
+            this.disconnect();
+            this.jobCC = "CHECK_JOB_AVAILABILITY_ERROR_LOGIN";
             return false;
         }
 
@@ -368,8 +404,10 @@ class ZFTPConnector {
             this.jobCC = "JOB_NOT_FOUND_IN_JES";
             return false;
         } catch (IOException e) {
-            this.jobCC = "FETCH_LOG_IO_ERROR";
+            this.jobCC = "CHECK_JOB_AVAILABILITY_IO_ERROR";
             return false;
+        } finally {
+            this.disconnect();
         }
     }
 
@@ -383,6 +421,7 @@ class ZFTPConnector {
     private boolean fetchJobLog(OutputStream outputStream) {
         // Verify connection.
         if (!this.logon()) {
+            this.disconnect();
             this.jobCC = "FETCH_LOG_ERROR_LOGIN";
             return false;
         }
@@ -401,6 +440,8 @@ class ZFTPConnector {
         } catch (IOException e) {
             this.jobCC = "FETCH_LOG_IO_ERROR";
             return false;
+        } finally {
+            this.disconnect();
         }
     }
 
@@ -417,6 +458,7 @@ class ZFTPConnector {
         this.jobCC = "COULD_NOT_RETRIEVE_JOB_RC";
         // Verify connection.
         if (!this.logon()) {
+            this.disconnect();
             return false;
         }
 
@@ -462,8 +504,10 @@ class ZFTPConnector {
                 }
             }
             return false;
-        } catch (IOException e) {
+        } catch (IOException ignored) {
             // Do nothing.
+        } finally {
+            this.disconnect();
         }
         return false;
     }
@@ -476,6 +520,7 @@ class ZFTPConnector {
     private void deleteJobLog() {
         // Verify connection.
         if (!this.logon()) {
+            this.disconnect();
             return;
         }
 
@@ -486,6 +531,8 @@ class ZFTPConnector {
             this.FTPClient.deleteFile(this.jobID);
         } catch (IOException e) {
             // Do nothing.
+        } finally {
+            this.disconnect();
         }
     }
 
