@@ -18,13 +18,13 @@ import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.annotation.Nonnull;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -406,7 +406,7 @@ public class SCLMSCM extends SCM {
             List<SCLMFileState> temp = this.currentRevision.getChangedOnly();
             if (!temp.isEmpty()) {
                 temp.sort(SCLMFileState.changeComparator);
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(changelogFile), "UTF-8"));
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(changelogFile), StandardCharsets.UTF_8));
                 writer.println("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
                 writer.println("<changelog>");
                 for (SCLMFileState file : temp) {
@@ -563,17 +563,9 @@ public class SCLMSCM extends SCM {
         public ListBoxModel doFillCredentialsIdItems(
                 @AncestorInPath Item item,
                 @QueryParameter String credentialsId) {
-            if (item == null) {
-                try {
-                    boolean admin = Jenkins.get().hasPermission(Jenkins.ADMINISTER);
-                    if (!admin) return new StandardListBoxModel().includeCurrentValue(credentialsId);
-                } catch (IllegalStateException ignored) {
-                }
-            } else {
-                if (!item.hasPermission(Item.EXTENDED_READ)
-                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
-                    return new StandardListBoxModel().includeCurrentValue(credentialsId);
-                }
+            ListBoxModel creds = PermissionsChecker.FillBasicCredentials(item, credentialsId);
+            if (creds != null) {
+                return creds;
             }
             return new StandardListBoxModel()
                     .includeMatchingAs(
@@ -588,29 +580,16 @@ public class SCLMSCM extends SCM {
         }
 
         /**
-         * @param item configuration entity to use permissions from.
+         * @param item  configuration entity to use permissions from.
          * @param value Current credentials (or expression/env variable).
          * @return Whether creds are OK. Currently just check that it's set.
          */
         public FormValidation doCheckCredentialsId(
                 @AncestorInPath Item item,
                 @QueryParameter String value) {
-            if (item == null) {
-                if (!Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER)) {
-                    return FormValidation.ok();
-                }
-            } else {
-                if (!item.hasPermission(Item.EXTENDED_READ)
-                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
-                    return FormValidation.ok();
-                }
-            }
-            if (StringUtils.isBlank(value)) {
-
-                return FormValidation.ok();
-            }
-            if (value.startsWith("${") && value.endsWith("}")) {
-                return FormValidation.warning("Cannot validate expression based credentials");
+            FormValidation resp = PermissionsChecker.CheckCredentialsID(item, value);
+            if (resp != null) {
+                return resp;
             }
             List<DomainRequirement> domainRequirements = new ArrayList<>();
             if (CredentialsProvider.listCredentials(
