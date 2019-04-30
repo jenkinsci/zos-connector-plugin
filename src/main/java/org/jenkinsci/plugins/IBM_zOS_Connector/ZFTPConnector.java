@@ -8,6 +8,8 @@ import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,6 +67,10 @@ class ZFTPConnector {
      * JobID in JES.
      */
     private String jobID;
+    /**
+     * Whether job log was successfully captured
+     */
+    private boolean jobLogCaptured;
 
     // Work elements.
     /**
@@ -111,11 +117,7 @@ class ZFTPConnector {
         // Create FTPClient
         this.FTPClient = new FTPClient();
         // Make password invisible from log
-        try {
-            this.FTPClient.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(new OutputStreamWriter(System.out, "UTF-8")), true));
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
+        this.FTPClient.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(new OutputStreamWriter(System.out, StandardCharsets.UTF_8)), true));
 
         this.logPrefix = "";
         if (logPrefix != null)
@@ -132,11 +134,9 @@ class ZFTPConnector {
      * @see ZFTPConnector#ZFTPConnector(String, int, String, String, boolean, String)
      */
     private boolean connect() {
-        // 1. Disconnect and ignore error.
-        try {
-            this.FTPClient.disconnect();
-        } catch (IOException ignored) {
-
+        // If available, consider OK
+        if (this.FTPClient.isAvailable()) {
+            return true;
         }
         // Perform the connection.
         try {
@@ -174,23 +174,23 @@ class ZFTPConnector {
     }
 
     /**
-     * Try to logon to the <b><code>server</code></b> using the parameters passed to the constructor.
+     * Try to relogon to the <b><code>server</code></b> using the parameters passed to the constructor.
      * Also, <code>site filetype=jes jesjobname=* jesowner=*</code> command is invoked.
      *
      * @return Whether the credentials supplied are valid and the connection was established.
      * @see ZFTPConnector#ZFTPConnector(String, int, String, String, boolean, String)
      * @see ZFTPConnector#connect()
      */
-    private boolean logon() {
-        // 1. log out, ignore error
-        try {
-            this.FTPClient.logout();
-        } catch (IOException ignored) {
-        }
-
+    private boolean relogon() {
         // Check whether we are already connected. If not, try to reconnect.
         if (!this.connect())
             return false; // Couldn't connect to the server. Can't check the credentials.
+
+        // Log off, ignore error.
+        try {
+            this.FTPClient.rein();
+        } catch (IOException ignored) {
+        }
 
         // Perform the login process.
         try {
@@ -204,7 +204,7 @@ class ZFTPConnector {
             }
 
             // Try to set filetype, jesjobname and jesstatus.
-            this.FTPClient.site("filetype=jes jesjobname=* jesstatus=ALL");
+            this.FTPClient.site("filetype=jes jesjobname=* jesstatus=ALL jesentrylimit=1024");
             // Check reply.
             reply = this.FTPClient.getReplyCode();
             if (!FTPReply.isPositiveCompletion(reply)) {
@@ -220,7 +220,7 @@ class ZFTPConnector {
                     // do nothing
                 }
             }
-            this.err("Could not logon to server.");
+            this.err("Could not relogon to server.");
             e.printStackTrace();
             return false;
         }
@@ -231,7 +231,7 @@ class ZFTPConnector {
 
     /**
      * Try logging oou of the FTP server.
-     * This will not fail at all - instead if the next logon attempt fails you will see something more accurate.
+     * This will not fail at all - instead if the next relogon attempt fails you will see something more accurate.
      */
     private void disconnect() {
         try {
@@ -266,7 +266,7 @@ class ZFTPConnector {
      * @param deleteLogFromSpool Whether the job log should be deleted fro spool upon job end.
      * @return Whether the job was successfully submitted and the job log was fetched.
      * <br><b><code>jobCC</code></b> holds the response of the operation (including errors).
-     * @see ZFTPConnector#logon()
+     * @see ZFTPConnector#relogon()
      * @see ZFTPConnector#waitForCompletion(OutputStream)
      * @see ZFTPConnector#deleteJobLog()
      */
@@ -277,9 +277,10 @@ class ZFTPConnector {
         this.jobID = "";
         this.jobName = "";
         this.jobCC = "";
+        this.jobLogCaptured = false;
 
         // Verify connection.
-        if (!this.logon()) {
+        if (!this.relogon()) {
             this.disconnect();
             this.jobCC = "COULD_NOT_CONNECT";
             return false;
@@ -300,6 +301,13 @@ class ZFTPConnector {
                     break;
                 }
             }
+            if (this.jobID.isEmpty()) {
+                this.err("Failed to parse JES job ID. Response lines:---->\n");
+                Arrays.stream(this.FTPClient.getReplyStrings()).forEachOrdered(this::err);
+                this.err("Failed to parse JES job ID. Response lines:<----\n");
+                this.jobCC = "FAILED_TO_PARSE_JOB_ID";
+                return false;
+            }
             this.log("Submitted job [" + this.jobID + "]");
             inputStream.close();
         } catch (FTPConnectionClosedException e) {
@@ -311,25 +319,27 @@ class ZFTPConnector {
             e.printStackTrace();
             this.jobCC = "IO_ERROR";
             return false;
-        } finally {
-            this.disconnect();
         }
 
         if (wait) {
             // Wait for completion.
             if (this.waitForCompletion(outputStream)) {
-                if (deleteLogFromSpool)
+                if (deleteLogFromSpool) {
                     // Delete job log from spool.
                     this.deleteJobLog();
+                }
+                this.disconnect();
                 return true;
             } else {
                 if (this.jobCC == null)
                     this.jobCC = "JOB_DID_NOT_FINISH_IN_TIME";
+                this.disconnect();
                 return false;
             }
         }
 
         // If we are here, everything went fine.
+        this.disconnect();
         return true;
     }
 
@@ -371,8 +381,6 @@ class ZFTPConnector {
             // Try to fetch job log.
             if (this.fetchJobLog(outputStream))
                 return true;
-
-
         } while (eternal || (curr <= jobEndTime));
 
         // Exit with wait error.
@@ -385,8 +393,7 @@ class ZFTPConnector {
      */
     private boolean checkJobAvailability() {
         // Verify connection.
-        if (!this.logon()) {
-            this.disconnect();
+        if (!this.relogon()) {
             this.jobCC = "CHECK_JOB_AVAILABILITY_ERROR_LOGIN";
             return false;
         }
@@ -406,8 +413,6 @@ class ZFTPConnector {
         } catch (IOException e) {
             this.jobCC = "CHECK_JOB_AVAILABILITY_IO_ERROR";
             return false;
-        } finally {
-            this.disconnect();
         }
     }
 
@@ -420,94 +425,132 @@ class ZFTPConnector {
      */
     private boolean fetchJobLog(OutputStream outputStream) {
         // Verify connection.
-        if (!this.logon()) {
-            this.disconnect();
+        if (!this.relogon()) {
             this.jobCC = "FETCH_LOG_ERROR_LOGIN";
             return false;
         }
 
         this.FTPClient.enterLocalPassiveMode();
 
-        // Try fetching.
-        try {
-            // Try fetching the log.
-            if (!this.FTPClient.retrieveFile(this.jobID, outputStream)) {
-                this.jobCC = "RETR_ERR_JOB_NOT_FINISHED_OR_NOT_FOUND";
+        if (!this.jobLogCaptured) {
+            // Try fetching.
+            try {
+                // Try fetching the log.
+                this.jobLogCaptured = this.FTPClient.retrieveFile(this.jobID, outputStream);
+                if (!this.jobLogCaptured) {
+                    this.jobCC = "RETR_ERR_JOB_NOT_FINISHED_OR_NOT_FOUND";
+                    return false;
+                }
+            } catch (IOException e) {
+                this.jobCC = "FETCH_LOG_IO_ERROR";
                 return false;
             }
-
-            return this.obtainJobRC();
-        } catch (IOException e) {
-            this.jobCC = "FETCH_LOG_IO_ERROR";
-            return false;
-        } finally {
-            this.disconnect();
         }
+        return this.obtainJobRC();
     }
 
     /**
      * @return Whether job RC was correctly obtained or not.
      */
     private boolean obtainJobRC() {
-
-        if (this.JESINTERFACELEVEL1) {
-            this.jobCC = "NO_RC - JESINTERFACELEVEL_IS_1";
-            return true;
-        }
-
         this.jobCC = "COULD_NOT_RETRIEVE_JOB_RC";
         // Verify connection.
-        if (!this.logon()) {
-            this.disconnect();
+        if (!this.relogon()) {
             return false;
         }
 
         this.FTPClient.enterLocalPassiveMode();
 
-        Pattern CC = Pattern.compile("(\\S+)\\s+" + jobID + ".* RC=(.*?) .*");
-        Pattern CCUndefined = Pattern.compile("(\\S+)\\s+" + jobID + ".* RC\\s+(\\S+)\\s+.*");
-        Pattern ABEND = Pattern.compile("(\\S+)\\s+" + jobID + ".* ABEND=(.*?)\\s+.*");
-        Pattern JCLERROR = Pattern.compile("(\\S+)\\s+" + jobID + ".* \\(JCL error\\)\\s+.*");
+        // JOB NAME
+        Pattern JOBNAME = Pattern.compile("(\\S+)\\s+" + jobID + "\\s+(.*)");
+
+        Pattern CC = Pattern.compile(".* RC=(\\S+) .*");
+        Pattern CCUndefined = Pattern.compile(".* RC\\s+(\\S+)\\s+.*");
+        Pattern ABEND = Pattern.compile(".* ABEND=(.*?) .*");
+        Pattern JCLERROR = Pattern.compile(".* \\(JCL error\\) .*");
 
         // Check RC.
         try {
             for (FTPFile ftpFile : this.FTPClient.listFiles("*")) {
                 String fileName = ftpFile.toString();
 
-                Matcher CCMatcher = CC.matcher(fileName);
-                Matcher CCUndefinedMatcher = CCUndefined.matcher(fileName);
-                Matcher ABENDMatcher = ABEND.matcher(fileName);
-                Matcher JCLERRORMatcher = JCLERROR.matcher(fileName);
-
-                if (JCLERRORMatcher.matches()) {
-                    this.jobName = JCLERRORMatcher.group(1);
-                    this.jobCC = "JCL_ERROR";
-                    return true;
-                } else {
-                    if (ABENDMatcher.matches()) {
-                        this.jobName = ABENDMatcher.group(1);
-                        this.jobCC = "ABEND_" + ABENDMatcher.group(2);
-                        return true;
-                    } else {
-                        if (CCUndefinedMatcher.matches()) {
-                            this.jobName = CCUndefinedMatcher.group(1);
-                            this.jobCC = CCUndefinedMatcher.group(2).toUpperCase();
-                            return true;
-                        } else {
-                            if (CCMatcher.matches()) {
-                                this.jobName = CCMatcher.group(1);
-                                this.jobCC = CCMatcher.group(2);
-                                return true;
+                Matcher JOBNAMEMatcher = JOBNAME.matcher(fileName);
+                if (JOBNAMEMatcher.matches()) {
+                    this.jobName = JOBNAMEMatcher.group(1);
+                    this.log("Found job " + this.jobID + " with name " + this.jobName + " in JES");
+                    String rcPart = JOBNAMEMatcher.group(2);
+                    this.log("Will check JOB status in '" + rcPart + "'");
+                    if (this.JESINTERFACELEVEL1) {
+                        if (rcPart.startsWith("INPUT")) {
+                            this.log("Found job " + jobName + " in INPUT");
+                            return false;
+                        }
+                        if (rcPart.startsWith("ACTIVE")) {
+                            this.log("Found job " + jobName + " in ACTIVE");
+                            return false;
+                        }
+                        if (rcPart.startsWith("OUTPUT")) {
+                            this.log("Found job " + jobName + " in OUTPUT, will fetch log for additional scan");
+                            Pattern HASP395 = Pattern.compile(".*HASP395\\s+" + jobName + "\\s+ENDED(\\s+-\\s+(\\S+)\\s*)?.*");
+                            // Try fetching the log.
+                            ByteArrayOutputStream tempOutputStream = new ByteArrayOutputStream();
+                            boolean gotHASP395 = false;
+                            // If we see "JCL ERROR" line before HASP365 without actual RC - use JCL ERROR
+                            boolean sawJCLError = false;
+                            if (this.FTPClient.retrieveFile(this.jobID, tempOutputStream)) {
+                                for (String line : tempOutputStream.toString(StandardCharsets.US_ASCII.name()).split("\\n")) {
+                                    sawJCLError |= line.contains("JCL ERROR");
+                                    Matcher HASP395Matcher = HASP395.matcher(line);
+                                    if (HASP395Matcher.matches()) {
+                                        rcPart = HASP395Matcher.group(2);
+                                        if (rcPart == null) {
+                                            if (sawJCLError) {
+                                                this.jobCC = "JCL_ERROR";
+                                                return true;
+                                            }
+                                            this.err("Found HASP395 with no RC info: '" + line + "'");
+                                            return false;
+                                        }
+                                        this.log("Found HASP395: '" + rcPart + "'");
+                                        rcPart = "FROM_JOB_LOG " + rcPart + " FROM_JOB_LOG";
+                                        gotHASP395 = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!gotHASP395) {
+                                this.err("Failed to find HASP395 in job log");
+                                return false;
                             }
                         }
+                        // Here we either have rcPart in JESINTERFACELEVEL=2 format
+                        Matcher JCLERRORMatcher = JCLERROR.matcher(rcPart);
+                        if (JCLERRORMatcher.matches()) {
+                            this.jobCC = "JCL_ERROR";
+                            return true;
+                        }
+                        Matcher ABENDMatcher = ABEND.matcher(rcPart);
+                        if (ABENDMatcher.matches()) {
+                            this.jobCC = "ABEND_" + ABENDMatcher.group(1);
+                            return true;
+                        }
+                        Matcher CCUndefinedMatcher = CCUndefined.matcher(rcPart);
+                        if (CCUndefinedMatcher.matches()) {
+                            this.jobCC = CCUndefinedMatcher.group(1).toUpperCase();
+                            return true;
+                        }
+                        Matcher CCMatcher = CC.matcher(rcPart);
+                        if (CCMatcher.matches()) {
+                            this.jobCC = CCMatcher.group(1);
+                            return true;
+                        }
+                        this.err("Unexpected rc part: '" + rcPart + "'");
                     }
+                    return false;
                 }
             }
-            return false;
         } catch (IOException ignored) {
             // Do nothing.
-        } finally {
-            this.disconnect();
         }
         return false;
     }
@@ -519,8 +562,7 @@ class ZFTPConnector {
      */
     private void deleteJobLog() {
         // Verify connection.
-        if (!this.logon()) {
-            this.disconnect();
+        if (!this.relogon()) {
             return;
         }
 
@@ -531,8 +573,6 @@ class ZFTPConnector {
             this.FTPClient.deleteFile(this.jobID);
         } catch (IOException e) {
             // Do nothing.
-        } finally {
-            this.disconnect();
         }
     }
 

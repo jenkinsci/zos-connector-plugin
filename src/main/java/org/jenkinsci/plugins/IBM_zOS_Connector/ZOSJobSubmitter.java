@@ -15,13 +15,13 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 
 import javax.annotation.Nonnull;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -139,12 +139,12 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      */
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener)
-            throws IOException, InterruptedException {
+            throws IOException {
         // variables to be expanded
         String _server = this.server;
         String _jobFile = this.jobFile;
         String _MaxCC = this.MaxCC;
-        String inputJCL = "";
+        String inputJCL;
 
         String logPrefix = run.getParent().getDisplayName() + " " + run.getId() + ": ";
         try {
@@ -176,7 +176,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         }
 
         // Prepare the input and output stream.
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(inputJCL.getBytes("UTF-8"));
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(inputJCL.getBytes(StandardCharsets.UTF_8));
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         // Get connector.
@@ -223,7 +223,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         // If wait was requested try to save the job log.
         if (this.wait) {
             if (this.jobLogToConsole) {
-                listener.getLogger().println(outputStream.toString("US-ASCII"));
+                listener.getLogger().println(outputStream.toString(StandardCharsets.US_ASCII.name()));
             }
             // Save the log.
             try {
@@ -246,7 +246,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
             printableCC = "0000"; //set RC = 0
         }
 
-        if (!(result && (this.JESINTERFACELEVEL1 || (_MaxCC.compareTo(printableCC) >= 0)))) {
+        if (!(result && (_MaxCC.compareTo(printableCC) >= 0))) {
             throw new AbortException("z/OS job failed with CC " + printableCC);
         }
     }
@@ -378,17 +378,9 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         public ListBoxModel doFillCredentialsIdItems(
                 @AncestorInPath Item item,
                 @QueryParameter String credentialsId) {
-            if (item == null) {
-                try {
-                    boolean admin = Jenkins.get().hasPermission(Jenkins.ADMINISTER);
-                    if (!admin) return new StandardListBoxModel().includeCurrentValue(credentialsId);
-                } catch (IllegalStateException ignored) {
-                }
-            } else {
-                if (!item.hasPermission(Item.EXTENDED_READ)
-                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
-                    return new StandardListBoxModel().includeCurrentValue(credentialsId);
-                }
+            ListBoxModel creds = PermissionsChecker.FillBasicCredentials(item, credentialsId);
+            if (creds != null) {
+                return creds;
             }
             return new StandardListBoxModel()
                     .includeMatchingAs(
@@ -402,30 +394,18 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
 
         }
 
+
         /**
-         * @param item configuration entity to use permissions from.
+         * @param item  configuration entity to use permissions from.
          * @param value Current credentials (or expression/env variable).
          * @return Whether creds are OK. Currently just check that it's set.
          */
         public FormValidation doCheckCredentialsId(
                 @AncestorInPath Item item,
                 @QueryParameter String value) {
-            if (item == null) {
-                if (!Jenkins.getActiveInstance().hasPermission(Jenkins.ADMINISTER)) {
-                    return FormValidation.ok();
-                }
-            } else {
-                if (!item.hasPermission(Item.EXTENDED_READ)
-                        && !item.hasPermission(CredentialsProvider.USE_ITEM)) {
-                    return FormValidation.ok();
-                }
-            }
-            if (StringUtils.isBlank(value)) {
-
-                return FormValidation.ok();
-            }
-            if (value.startsWith("${") && value.endsWith("}")) {
-                return FormValidation.warning("Cannot validate expression based credentials");
+            FormValidation resp = PermissionsChecker.CheckCredentialsID(item, value);
+            if (resp != null) {
+                return resp;
             }
             List<DomainRequirement> domainRequirements = new ArrayList<>();
             if (CredentialsProvider.listCredentials(
