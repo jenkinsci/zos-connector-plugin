@@ -401,11 +401,13 @@ class ZFTPConnector {
 
         // Try listing files
         try {
-            for (String name : this.FTPClient.listNames("*")) {
-                if (this.jobID.equals(name)) {
-                    // Found our jobId
-                    return true;
-                }
+            String[] availableJobs = this.FTPClient.listNames("*");
+            if (availableJobs == null) {
+                this.err("failed to list available jobs");
+                return false;
+            }
+            if (Arrays.stream(availableJobs).anyMatch(name -> this.jobID.equals(name))) {
+                return true;
             }
             this.err("Job [" + this.jobID + "] cannot be found in JES");
             this.jobCC = "JOB_NOT_FOUND_IN_JES";
