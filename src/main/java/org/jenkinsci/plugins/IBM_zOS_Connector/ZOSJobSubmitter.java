@@ -79,6 +79,10 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      * MaxCC to decide that job ended OK.
      */
     private String MaxCC;
+    /**
+     * FTP data transfer mode
+     */
+    private boolean FTPActiveMode;
 
     /**
      * Constructor. Invoked when 'Apply' or 'Save' button is pressed on the project configuration page.
@@ -93,6 +97,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      * @param jobLogToConsole    Whether the job log will be printed to console.
      * @param jobFile            File with JCL of the job to be submitted.
      * @param JESINTERFACELEVEL1 Is FTP server configured for JESINTERFACELEVEL=1?
+     * @param FTPActiveMode      FTP data transfer mode (true=active, false=passive)       
      */
     @DataBoundConstructor
     public ZOSJobSubmitter(
@@ -105,7 +110,8 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
             boolean jobLogToConsole,
             String jobFile,
             String MaxCC,
-            boolean JESINTERFACELEVEL1) {
+            boolean JESINTERFACELEVEL1,
+            boolean FTPActiveMode) {
         // Copy values
         this.server = server.replaceAll("\\s", "");
         this.port = port;
@@ -113,6 +119,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         this.wait = wait;
         this.waitTime = waitTime;
         this.JESINTERFACELEVEL1 = JESINTERFACELEVEL1;
+        this.FTPActiveMode = FTPActiveMode;
         this.deleteJobFromSpool = deleteJobFromSpool;
         this.jobLogToConsole = jobLogToConsole;
         this.jobFile = jobFile;
@@ -185,7 +192,8 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
                 creds.getUsername(),
                 creds.getPassword().getPlainText(),
                 this.JESINTERFACELEVEL1,
-                logPrefix);
+                logPrefix,
+                this.FTPActiveMode);
         // Submit the job.
         boolean result = zFTPConnector.submit(inputStream, this.wait, this.waitTime, outputStream, this.deleteJobFromSpool, listener);
 
@@ -334,6 +342,15 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
      */
     public String getMaxCC() {
         return this.MaxCC;
+    }
+    
+    /**
+     * Get FTPActiveMode
+     *
+     * @return <b><code>FTPActiveMode</code></b>
+     */
+    public boolean getFTPActiveMode() {
+        return this.FTPActiveMode;
     }
 
     /**

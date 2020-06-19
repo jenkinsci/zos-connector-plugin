@@ -53,6 +53,10 @@ public class SCLMSCM extends SCM {
      * FTP server JESINTERFACELEVEL=1?
      */
     private boolean JESINTERFACELEVEL1;
+    /**
+     * FTP transfer mode
+     */
+    private boolean FTPActiveMode;
 
     // SCLM project information (project, alternate, group, types to monitor)
     /**
@@ -305,7 +309,7 @@ public class SCLMSCM extends SCM {
         ZFTPConnector zFTPConnector = new ZFTPConnector(
                 this.server,
                 this.port,
-                user, password, this.JESINTERFACELEVEL1, logPrefix);
+                user, password, this.JESINTERFACELEVEL1, logPrefix, this.FTPActiveMode);
 
         // Fetch revision.
         return new SCLMSCMRevisionState(this.project, this.alternate, this.group, this.types, this.JobHeader + "\n" + this.JobStep, zFTPConnector, baseline);

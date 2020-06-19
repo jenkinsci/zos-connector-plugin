@@ -95,6 +95,10 @@ class ZFTPConnector {
      * Task listener (if provided).
      */
     private TaskListener listener;
+    /**
+     * FTP transfer mode
+     */
+    private boolean FTPActiveMode;
 
     /**
      * Basic constructor with minimal parameters required.
@@ -105,14 +109,16 @@ class ZFTPConnector {
      * @param password           User password.
      * @param JESINTERFACELEVEL1 Is FTP server configured for JESINTERFACELEVEL=1?
      * @param logPrefix          Log prefix.
+     * @param FTPActiveMode      FTP data transfer mode (true=active, false=passive) 
      */
-    ZFTPConnector(String server, int port, String userID, String password, boolean JESINTERFACELEVEL1, String logPrefix) {
+    ZFTPConnector(String server, int port, String userID, String password, boolean JESINTERFACELEVEL1, String logPrefix, boolean FTPActiveMode) {
         // Copy values
         this.server = server;
         this.port = port;
         this.userID = userID;
         this.password = password;
         this.JESINTERFACELEVEL1 = JESINTERFACELEVEL1;
+        this.FTPActiveMode = FTPActiveMode; 
 
         this.FTPClient = null;
 
@@ -289,7 +295,9 @@ class ZFTPConnector {
 
         try {
             // Submit the job.
-            this.FTPClient.enterLocalPassiveMode();
+        	if (!this.FTPActiveMode) {
+        		this.FTPClient.enterLocalPassiveMode();
+        	}
             this.FTPClient.storeFile("jenkins.sub", inputStream);
 
             // Scan reply from server to get JobID.
@@ -392,7 +400,9 @@ class ZFTPConnector {
      * @return true if job can be listed through FTP.
      */
     private boolean checkJobAvailability() {
-        this.FTPClient.enterLocalPassiveMode();
+    	if (!this.FTPActiveMode) {
+    		this.FTPClient.enterLocalPassiveMode();
+    	}
         // Verify connection.
         if (!this.logon()) {
             this.jobCC = "CHECK_JOB_AVAILABILITY_ERROR_LOGIN";
@@ -432,7 +442,9 @@ class ZFTPConnector {
             return false;
         }
 
-        this.FTPClient.enterLocalPassiveMode();
+    	if (!this.FTPActiveMode) {
+    		this.FTPClient.enterLocalPassiveMode();
+    	}
         if (!this.jobLogCaptured) {
             // Try fetching.
             try {
@@ -468,7 +480,9 @@ class ZFTPConnector {
         Pattern ABEND = Pattern.compile(".* ABEND=(.*?) .*");
         Pattern JCLERROR = Pattern.compile(".* \\(JCL error\\) .*");
 
-        this.FTPClient.enterLocalPassiveMode();
+    	if (!this.FTPActiveMode) {
+    		this.FTPClient.enterLocalPassiveMode();
+    	}
         // Check RC.
         try {
             for (FTPFile ftpFile : this.FTPClient.listFiles("*")) {
@@ -568,7 +582,9 @@ class ZFTPConnector {
         }
 
         // Delete log.
-        this.FTPClient.enterLocalPassiveMode();
+    	if (!this.FTPActiveMode) {
+    		this.FTPClient.enterLocalPassiveMode();
+    	}
         try {
             this.FTPClient.deleteFile(this.jobID);
         } catch (IOException e) {
