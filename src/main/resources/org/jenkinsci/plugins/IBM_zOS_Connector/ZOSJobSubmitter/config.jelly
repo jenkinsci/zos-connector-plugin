@@ -37,7 +37,7 @@
         </f:entry>
         <f:entry field="FTPActiveMode" title="FTPActiveMode"
                  description="Execute FTP connection in active mode">
-            <f:checkbox checked="${it.getFTPActiveMode()}"/>
+            <f:checkbox default="false" value="${it.getFTPActiveMode()}"/>
         </f:entry>
     </f:advanced>
 </j:jelly>

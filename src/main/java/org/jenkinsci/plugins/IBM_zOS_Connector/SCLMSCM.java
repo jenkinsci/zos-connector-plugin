@@ -125,6 +125,7 @@ public class SCLMSCM extends SCM {
      * @param port               FTP port to connect to.
      * @param credentialsId      Credentials id..
      * @param JESINTERFACELEVEL1 JESINTERFACELEVEL=1?
+     * @param FTPActiveMode      FTP data transfer mode (true=active, false=passive)
      * @param project            SCLM Project Name.
      * @param alternate          SCLM Alternate Project Definition.
      * @param group              SCLM Group.
@@ -139,6 +140,7 @@ public class SCLMSCM extends SCM {
                    int port,
                    String credentialsId,
                    boolean JESINTERFACELEVEL1,
+                   boolean FTPActiveMode,
                    String project,
                    String alternate,
                    String group,
@@ -151,6 +153,7 @@ public class SCLMSCM extends SCM {
         this.port = port;
         this.credentialsId = credentialsId;
         this.JESINTERFACELEVEL1 = JESINTERFACELEVEL1;
+        this.FTPActiveMode = FTPActiveMode;
 
         this.project = project.replaceAll("\\s", "");
         this.alternate = alternate.replaceAll("\\s", "");
@@ -236,6 +239,15 @@ public class SCLMSCM extends SCM {
      */
     public boolean getJESINTERFACELEVEL1() {
         return this.JESINTERFACELEVEL1;
+    }
+    
+    /**
+     * Get FTPActiveMode
+     *
+     * @return <b><code>FTPActiveMode</code></b>
+     */
+    public boolean getFTPActiveMode() {
+        return this.FTPActiveMode;
     }
 
     /**
