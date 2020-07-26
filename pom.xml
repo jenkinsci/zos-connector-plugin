@@ -10,11 +10,11 @@
     </parent>
 
     <artifactId>zos-connector</artifactId>
-    <version>2.3.3-SNAPSHOT</version>
+    <version>2.3.5-SNAPSHOT</version>
     <packaging>hpi</packaging>
     <name>IBM z/OS Connector</name>
     <description>IBM z/OS FTP Connector - bunch of tools for integration with IBM z/OS</description>
-    <url>https://wiki.jenkins-ci.org/display/JENKINS/IBM+zOS+Connector</url>
+    <url>https://github.com/jenkinsci/zos-connector-plugin</url>
 
     <properties>
         <jenkins.version>2.107.3</jenkins.version>

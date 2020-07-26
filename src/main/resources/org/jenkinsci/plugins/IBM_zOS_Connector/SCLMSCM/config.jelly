@@ -46,5 +46,9 @@
                  description="Check if FTP server is configured with JESINTERFACELEVEL=1">
             <f:checkbox checked="${it.getJESINTERFACELEVEL1()}"/>
         </f:entry>
+                <f:entry field="FTPActiveMode" title="FTPActiveMode"
+                 description="Execute FTP connection in active mode">
+            <f:checkbox default="false" value="${it.getFTPActiveMode()}"/>
+        </f:entry>
     </f:advanced>
 </j:jelly>
