@@ -78,7 +78,7 @@ public class SCLMSCMRevisionState extends SCMRevisionState {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         // Submit the job for the DBUTIL report and build remote file list.
-        if (ZFTPConnector.submit(inputStream, true, 0, outputStream, true)) {
+        if (ZFTPConnector.submit(null, inputStream, true, 0, outputStream, true, false)) {
             String out = "";
             try {
                 out = outputStream.toString("UTF-8");

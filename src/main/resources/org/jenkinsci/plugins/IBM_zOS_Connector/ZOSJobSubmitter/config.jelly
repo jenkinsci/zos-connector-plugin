@@ -12,6 +12,10 @@
     <f:entry field="jobFile" title="Job file">
         <f:textbox value="${it.getJobFile()}"/>
     </f:entry>
+    <f:entry field="isJobOnHost" title="isJobOnHost" 
+			 description="Submit job from z/OS dataset">
+        <f:checkbox default="false" value="${it.getIsJobOnHost()}"/>
+    </f:entry>
     <f:block>
         <table style="width:100%">
             <f:optionalBlock inline="true" field="wait" title="Wait for completion?" checked="${it.getWait()}">
