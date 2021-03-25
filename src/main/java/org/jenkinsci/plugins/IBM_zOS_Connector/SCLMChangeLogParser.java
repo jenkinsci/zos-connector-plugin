@@ -4,8 +4,7 @@ package org.jenkinsci.plugins.IBM_zOS_Connector;
 import hudson.model.Run;
 import hudson.scm.ChangeLogParser;
 import hudson.scm.RepositoryBrowser;
-import hudson.util.Digester2;
-import org.apache.commons.digester.Digester;
+import org.apache.commons.digester3.Digester;
 import org.xml.sax.SAXException;
 
 import java.io.*;
@@ -40,7 +39,7 @@ public class SCLMChangeLogParser extends ChangeLogParser {
         throws IOException,
         SAXException
     {
-        Digester digester = new Digester2();
+        Digester digester = new Digester();
 
         // Parse fields.
         digester.addObjectCreate("*/changelog", LogSet.class);
