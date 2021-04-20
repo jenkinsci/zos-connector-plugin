@@ -7,6 +7,7 @@ import hudson.scm.RepositoryBrowser;
 import org.apache.commons.digester3.Digester;
 import org.xml.sax.SAXException;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 
 /**
@@ -40,6 +41,20 @@ public class SCLMChangeLogParser extends ChangeLogParser {
         SAXException
     {
         Digester digester = new Digester();
+
+        digester.setXIncludeAware(false);
+
+        if (!Boolean.getBoolean(SCLMChangeLogParser.class.getName() + ".UNSAFE")) {
+            try {
+                digester.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+                digester.setFeature("http://xml.org/sax/features/external-general-entities", false);
+                digester.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+                digester.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            }
+            catch ( ParserConfigurationException ex) {
+                throw new SAXException("Failed to securely configure CVS changelog parser", ex);
+            }
+        }
 
         // Parse fields.
         digester.addObjectCreate("*/changelog", LogSet.class);
