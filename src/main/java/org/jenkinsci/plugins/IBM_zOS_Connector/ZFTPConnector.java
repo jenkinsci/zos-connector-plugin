@@ -42,23 +42,23 @@ class ZFTPConnector {
     /**
      * LPAR name or IP to connect to.
      */
-    private String server;
+    private final String server;
 
     // Wait parameters.
     /**
      * FTP port for connection
      */
-    private int port;
+    private final int port;
 
     // Job info from JES-like system.
     /**
      * UserID.
      */
-    private String userID;
+    private final String userID;
     /**
      * User password.
      */
-    private String password;
+    private final String password;
     /**
      * Time to wait before giving up in milliseconds. If set to <code>0</code> will wait forever.
      */
@@ -82,7 +82,7 @@ class ZFTPConnector {
      */
     private String jobCC;
     // JESINTERFACELEVEL=1
-    private boolean JESINTERFACELEVEL1;
+    private final boolean JESINTERFACELEVEL1;
     /**
      * FTPClient from <i>Apache Commons-Net</i>. Used for FTP communication.
      */
@@ -98,7 +98,7 @@ class ZFTPConnector {
     /**
      * FTP transfer mode
      */
-    private boolean FTPActiveMode;
+    private final boolean FTPActiveMode;
 
     /**
      * Basic constructor with minimal parameters required.
@@ -134,7 +134,7 @@ class ZFTPConnector {
      * Try to connect to the <b><code>server</code></b> using the parameters passed to the constructor.
      *
      * @return Whether the connection was established using the parameters passed to the constructor.
-     * @see ZFTPConnector#ZFTPConnector(String, int, String, String, boolean, String)
+     * @see ZFTPConnector#ZFTPConnector
      */
     private boolean connect() {
         // 1. Disconnect and ignore error.
@@ -183,7 +183,7 @@ class ZFTPConnector {
      * Also, <code>site filetype=jes jesjobname=* jesowner=*</code> command is invoked.
      *
      * @return Whether the credentials supplied are valid and the connection was established.
-     * @see ZFTPConnector#ZFTPConnector(String, int, String, String, boolean, String)
+     * @see ZFTPConnector#ZFTPConnector
      * @see ZFTPConnector#connect()
      */
     private boolean logon() {

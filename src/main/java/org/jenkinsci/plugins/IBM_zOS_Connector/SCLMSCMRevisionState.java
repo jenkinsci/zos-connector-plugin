@@ -35,11 +35,11 @@ public class SCLMSCMRevisionState extends SCMRevisionState {
     /**
      * List of current files under interest.
      */
-    private LinkedList<SCLMFileState> files;
+    private final LinkedList<SCLMFileState> files;
     /**
      * Types of files under interest.
      */
-    private LinkedList<String> types;
+    private final LinkedList<String> types;
 
     /**
      * Fetch new remote revision.

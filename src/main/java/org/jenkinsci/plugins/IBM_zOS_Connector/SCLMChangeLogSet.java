@@ -112,7 +112,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
         /**
          * Affected file.
          */
-        private SCLMAffectedFile affectedFile;
+        private final SCLMAffectedFile affectedFile;
         /**
          * Parent of the entry.
          */
@@ -268,7 +268,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
         /**
          * SCLM file.
          */
-        private SCLMFileState file;
+        private final SCLMFileState file;
 
         /**
          * Constructor based on LogSet.AffectedFile.

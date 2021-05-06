@@ -9,6 +9,7 @@ import org.xml.sax.SAXException;
 
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 
 /**
  * <h1>SCLMChangeLogParser</h1>
@@ -74,8 +75,8 @@ public class SCLMChangeLogParser extends ChangeLogParser {
         digester.addSetNext("*/changelog/entry", "addEntry");
 
         // Do the actual parsing
-        InputStreamReader reader = new InputStreamReader(new FileInputStream(changelogFile), "UTF-8");
-        LogSet temp = (LogSet)digester.parse(reader);
+        InputStreamReader reader = new InputStreamReader(new FileInputStream(changelogFile), StandardCharsets.UTF_8);
+        LogSet temp = digester.parse(reader);
         reader.close();
 
         // Convert to SCLMChangeLogSet

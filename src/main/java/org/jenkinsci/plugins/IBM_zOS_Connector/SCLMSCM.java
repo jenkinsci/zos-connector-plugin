@@ -78,19 +78,19 @@ public class SCLMSCM extends SCM {
     /**
      * Step for invoking FLMCMD.
      */
-    private String JobStep;
+    private final String JobStep;
     /**
      * Job header.
      */
-    private String JobHeader;
+    private final String JobHeader;
     /**
      * Use custom job header.
      */
-    private boolean custJobHeader;
+    private final boolean custJobHeader;
     /**
      * Use custom FLMCMD job step.
      */
-    private boolean custJobStep;
+    private final boolean custJobStep;
     /**
      * Current revision state.
      */

@@ -123,13 +123,13 @@ public class SCLMFileState {
         return null;
     }
 
-	/**
-	 * @param input Date to make printable
-	 * @return printable date
-	 */
-	public static String dateToString (Date input) {
-	    SimpleDateFormat df = new SimpleDateFormat(dateFormat);
-	    return df.format(input);
+    /**
+     * @param input Date to make printable
+     * @return printable date
+     */
+    public static String dateToString(Date input) {
+        SimpleDateFormat df = new SimpleDateFormat(dateFormat);
+        return df.format(input);
     }
 
     /**
@@ -259,8 +259,7 @@ public class SCLMFileState {
      */
     @Override
     public boolean equals(Object o) {
-        return o != null && o instanceof SCLMFileState && this.getPath().compareTo(((SCLMFileState) o).getPath()) == 0;
-
+        return o instanceof SCLMFileState && this.getPath().compareTo(((SCLMFileState) o).getPath()) == 0;
     }
 
     /**

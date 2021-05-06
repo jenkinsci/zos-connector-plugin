@@ -13,7 +13,6 @@ import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.Builder;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import jenkins.model.Jenkins;
 import jenkins.tasks.SimpleBuildStep;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -42,39 +41,39 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
     /**
      * LPAR name or IP address.
      */
-    private String server;
+    private final String server;
     /**
      * FTP port for connection
      */
-    private int port;
+    private final int port;
     /**
      * Credentials id to be converted to login+pw.
      */
-    private String credentialsId;
+    private final String credentialsId;
     /**
      * Whether need to wait for the job completion.
      */
-    private boolean wait;
+    private final boolean wait;
     /**
      * Whether FTP server is in JESINTERFACELEVEL=1.
      */
-    private boolean JESINTERFACELEVEL1;
+    private final boolean JESINTERFACELEVEL1;
     /**
      * Whether the job log is to be deleted upon job end.
      */
-    private boolean deleteJobFromSpool;
+    private final boolean deleteJobFromSpool;
     /**
      * Whether the job log is to be printed to Console.
      */
-    private boolean jobLogToConsole;
+    private final boolean jobLogToConsole;
     /**
      * Time to wait for the job to end. If set to <code>0</code> the buil will wait forever.
      */
-    private int waitTime;
+    private final int waitTime;
     /**
      * Path to local file with JCL text of the job to be submitted.
      */
-    private String jobFile;
+    private final String jobFile;
     /**
      * MaxCC to decide that job ended OK.
      */
@@ -82,7 +81,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
     /**
      * FTP data transfer mode
      */
-    private boolean FTPActiveMode;
+    private final boolean FTPActiveMode;
 
     /**
      * Constructor. Invoked when 'Apply' or 'Save' button is pressed on the project configuration page.
@@ -226,7 +225,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         } else {
             reportBuilder.append("finished. Skip waiting.");
         }
-        listener.getLogger().println(reportBuilder.toString());
+        listener.getLogger().println(reportBuilder);
 
         // If wait was requested try to save the job log.
         if (this.wait) {
