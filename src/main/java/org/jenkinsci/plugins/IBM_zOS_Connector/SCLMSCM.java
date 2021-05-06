@@ -578,10 +578,6 @@ public class SCLMSCM extends SCM {
 
         /**
          * Fill in credentials ID.
-         *
-         * @param item
-         * @param credentialsId
-         * @return
          */
         public ListBoxModel doFillCredentialsIdItems(
                 @AncestorInPath Item item,
