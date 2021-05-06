@@ -10,7 +10,7 @@
     </parent>
 
     <artifactId>zos-connector</artifactId>
-    <version>2.3.5-SNAPSHOT</version>
+    <version>2.3.5</version>
     <packaging>hpi</packaging>
     <name>IBM z/OS Connector</name>
     <description>IBM z/OS FTP Connector - bunch of tools for integration with IBM z/OS</description>
@@ -85,7 +85,8 @@
         <developerConnection>scm:git:ssh://git@github.com/jenkinsci/${project.artifactId}-plugin.git
         </developerConnection>
         <url>http://github.com/jenkinsci/${project.artifactId}-plugin</url>
-    </scm>
+      <tag>zos-connector-2.3.5</tag>
+  </scm>
 
     <dependencies>
         <dependency>
