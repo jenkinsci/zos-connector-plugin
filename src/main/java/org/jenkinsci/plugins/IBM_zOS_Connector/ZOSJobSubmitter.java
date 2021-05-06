@@ -391,6 +391,13 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
         }
 
 
+        /**
+         * Fill in credentials ID.
+         *
+         * @param item
+         * @param credentialsId
+         * @return
+         */
         public ListBoxModel doFillCredentialsIdItems(
                 @AncestorInPath Item item,
                 @QueryParameter String credentialsId) {

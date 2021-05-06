@@ -576,6 +576,13 @@ public class SCLMSCM extends SCM {
                 return SCLMJobStep;
         }
 
+        /**
+         * Fill in credentials ID.
+         *
+         * @param item
+         * @param credentialsId
+         * @return
+         */
         public ListBoxModel doFillCredentialsIdItems(
                 @AncestorInPath Item item,
                 @QueryParameter String credentialsId) {
