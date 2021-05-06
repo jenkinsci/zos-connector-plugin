@@ -469,6 +469,10 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
             return FormValidation.ok();
         }
 
+        /**
+         * @param value MaxCC provided by user
+         * @return Whether MaxCC is OK to use
+         */
         public FormValidation doCheckMaxCC(@QueryParameter String value) {
             if (!value.matches("(\\d{1,4})|(\\s*)"))
                 return FormValidation.error("Value must be 4 decimal digits or empty");
