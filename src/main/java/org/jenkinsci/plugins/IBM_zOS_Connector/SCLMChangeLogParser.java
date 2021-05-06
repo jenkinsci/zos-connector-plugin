@@ -12,7 +12,7 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 /**
- * <h1>SCLMChangeLogParser</h1>
+ * <h2>SCLMChangeLogParser</h2>
  *
  * Parser of changelog.xml from SCLM.
  *

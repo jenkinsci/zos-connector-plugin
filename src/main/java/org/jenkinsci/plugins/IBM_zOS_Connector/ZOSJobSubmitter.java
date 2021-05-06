@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.logging.Logger;
 
 /**
- * <h1>ZOSJobSubmitter</h1>
+ * <h2>ZOSJobSubmitter</h2>
  * Build step action for submitting JCL job.
  *
  * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>
@@ -363,7 +363,7 @@ public class ZOSJobSubmitter extends Builder implements SimpleBuildStep {
     }
 
     /**
-     * <h1>zOSJobSubmitterDescriptor</h1>
+     * <h2>zOSJobSubmitterDescriptor</h2>
      * Descriptor for ZOSJobSubmitter.
      *
      * @author Alexander Shchrbakov (candiduslynx@gmail.com)

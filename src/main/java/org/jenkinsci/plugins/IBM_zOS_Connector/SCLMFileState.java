@@ -8,7 +8,7 @@ import java.util.Comparator;
 import java.util.Date;
 
 /**
- * <h1>SCLMFileState</h1>
+ * <h2>SCLMFileState</h2>
  * Class describing file from SCLM.
  *
  * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>

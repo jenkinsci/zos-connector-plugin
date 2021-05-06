@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 
 
 /**
- * <h1>ZFTPConnector</h1>
+ * <h2>ZFTPConnector</h2>
  * FTP-based communication with z/OS-like systems.
  * Used for submitting jobs, fetching job log and extraction of MaxCC.
  *

@@ -15,7 +15,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * <h1>SCLMSCMRevisionState</h1>
+ * <h2>SCLMSCMRevisionState</h2>
  * Represents revision of SCLM.
  *
  * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>

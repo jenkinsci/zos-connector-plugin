@@ -29,7 +29,7 @@ import java.util.*;
 import java.util.logging.Logger;
 
 /**
- * <h1>SCLMSCM</h1>
+ * <h2>SCLMSCM</h2>
  * Class implementing SCM functionality for SCLM.s
  *
  * @author <a href="mailto:candiduslynx@gmail.com">Alexander Shcherbakov</a>
@@ -488,7 +488,7 @@ public class SCLMSCM extends SCM {
     }
 
     /**
-     * <h1>SCLMSCMDescriptor</h1>
+     * <h2>SCLMSCMDescriptor</h2>
      * Descriptor for SCLMSCM.
      *
      * @author Alexander Shcherbakov (candiduslynx@gmail.com)

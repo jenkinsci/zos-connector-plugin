@@ -13,7 +13,7 @@ import javax.annotation.Nonnull;
 import java.util.*;
 
 /**
- * <h1>SCLMChangeLogSet</h1>
+ * <h2>SCLMChangeLogSet</h2>
  * <p>
  * ChangeLogSet for SCLMSCM.
  *
@@ -98,7 +98,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
     }
 
     /**
-     * <h1>Entry</h1>
+     * <h2>Entry</h2>
      * <p>
      * Entry for SCLMChangeLogSet.
      *
@@ -254,7 +254,7 @@ public class SCLMChangeLogSet extends ChangeLogSet<SCLMChangeLogSet.Entry> {
     }
 
     /**
-     * <h1>SCLMAffectedFile</h1>
+     * <h2>SCLMAffectedFile</h2>
      * <p>
      * Affected File info.
      *

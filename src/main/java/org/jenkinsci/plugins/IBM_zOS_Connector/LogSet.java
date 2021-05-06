@@ -7,7 +7,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * <h1>LogSet</h1>
+ * <h2>LogSet</h2>
  * <p>
  * Proxy for SCLMChangeLogSet.
  *
@@ -51,7 +51,7 @@ public class LogSet {
     }
 
     /**
-     * <h1>LogSet.Entry</h1>
+     * <h2>LogSet.Entry</h2>
      * <p>
      * Entry for LogSet.
      *
@@ -178,7 +178,7 @@ public class LogSet {
     }
 
     /**
-     * <h1>LogSet.AffectedFile</h1>
+     * <h2>LogSet.AffectedFile</h2>
      * <p>
      * AffectedFile for LogSet.
      *
