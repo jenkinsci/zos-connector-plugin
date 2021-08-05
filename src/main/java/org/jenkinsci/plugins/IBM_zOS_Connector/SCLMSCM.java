@@ -5,7 +5,6 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
-import com.google.common.base.Joiner;
 import hudson.*;
 import hudson.model.Item;
 import hudson.model.Job;
@@ -301,7 +300,7 @@ public class SCLMSCM extends SCM {
      * @return <b><code>types</code></b>
      */
     public String getTypes() {
-        return Joiner.on(",").join(this.types);
+        return String.join(",", this.types);
     }
 
     /**
