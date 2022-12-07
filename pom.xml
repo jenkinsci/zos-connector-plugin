@@ -7,7 +7,6 @@
         <version>4.52</version>
         <relativePath />
     </parent>
-    <groupId>io.jenkins.plugins</groupId>
     <artifactId>zos-connector</artifactId>
     <version>${revision}.${changelist}</version>
     <packaging>hpi</packaging>
