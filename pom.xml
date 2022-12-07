@@ -36,7 +36,7 @@
     <properties>
         <revision>3</revision>
         <changelist>999999-SNAPSHOT</changelist>
-        <hpi.compatibleSinceVersion>3</hpi.compatibleSinceVersion>
+        <hpi.compatibleSinceVersion>2.0.0</hpi.compatibleSinceVersion>
 
         <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
         <jenkins.version>2.361.4</jenkins.version>
