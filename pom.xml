@@ -9,7 +9,7 @@
     </parent>
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>zos-connector</artifactId>
-    <version>${revision}${changelist}</version>
+    <version>${revision}.${changelist}</version>
     <packaging>hpi</packaging>
     <name>IBM z/OS Connector</name>
     <description>IBM z/OS FTP Connector - bunch of tools for integration with IBM z/OS</description>
@@ -34,8 +34,8 @@
         <url>https://github.com/${gitHubRepo}</url>
     </scm>
     <properties>
-        <revision>2.4.1</revision>
-        <changelist>-SNAPSHOT</changelist>
+        <revision>3</revision>
+        <changelist>999999-SNAPSHOT</changelist>
 
         <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
         <jenkins.version>2.361.4</jenkins.version>
