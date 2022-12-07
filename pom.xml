@@ -7,8 +7,8 @@
         <version>4.51</version>
         <relativePath />
     </parent>
-    <artifactId>zos-connector</artifactId>
     <groupId>io.jenkins.plugins</groupId>
+    <artifactId>zos-connector</artifactId>
     <version>${revision}${changelist}</version>
     <packaging>hpi</packaging>
     <name>IBM z/OS Connector</name>
@@ -36,45 +36,56 @@
     <properties>
         <revision>2.4.1</revision>
         <changelist>-SNAPSHOT</changelist>
+
         <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-        <jenkins.version>2.222.4</jenkins.version>
+        <jenkins.version>2.361.4</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>commons-net</groupId>
-                <artifactId>commons-net</artifactId>
-                <version>3.9.0</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-api</artifactId>
-                <version>1.7.26</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>slf4j-jdk14</artifactId>
-                <version>1.7.26</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>log4j-over-slf4j</artifactId>
-                <version>1.7.26</version>
-            </dependency>
-            <dependency>
-                <groupId>org.slf4j</groupId>
-                <artifactId>jcl-over-slf4j</artifactId>
-                <version>1.7.26</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jenkins-ci.plugins</groupId>
-                <artifactId>credentials</artifactId>
-                <version>2.6.1.1</version>
+                <!-- Pick up common dependencies for the selected LTS line: https://github.com/jenkinsci/bom#usage -->
+                <groupId>io.jenkins.tools.bom</groupId>
+                <artifactId>bom-2.361.x</artifactId>
+                <version>1723.vcb_9fee52c9fc</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>commons-net</groupId>
+            <artifactId>commons-net</artifactId>
+            <version>3.9.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.26</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-jdk14</artifactId>
+            <version>1.7.26</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+            <version>1.7.26</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>jcl-over-slf4j</artifactId>
+            <version>1.7.26</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jenkins-ci.plugins</groupId>
+            <artifactId>credentials</artifactId>
+            <version>2.6.1.1</version>
+        </dependency>
+    </dependencies>
 
     <repositories>
         <repository>
