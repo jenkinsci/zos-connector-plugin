@@ -3,14 +3,17 @@ Plugin for connection of Jenkins CI to IBM zOS including integration of IBM SCLM
 
 [![Build Status](https://ci.jenkins.io/buildStatus/icon?job=Plugins/zos-connector-plugin/master)](https://ci.jenkins.io/job/Plugins/job/zos-connector-plugin/job/master/)
 
-| Plugin Information                                                                                           |
-|--------------------------------------------------------------------------------------------------------------|
-| View IBM z/OS Connector [on the plugin site](https://plugins.jenkins.io/zos-connector) for more information. |
+> **Note**
+> View IBM z/OS Connector [on the plugin site](https://plugins.jenkins.io/zos-connector) for more information.
 
-Older versions of this plugin may not be safe to use. Please review the
-following warnings before using an older version:
+> **Warning**
+> This plugin is currently in the support mode.
+> The [z/OS DevOps](https://www.jenkins.io/doc/pipeline/steps/zdevops/) Pipeline step might suit you better.
 
--   [Password stored in plain text](https://jenkins.io/security/advisory/2018-06-25/#SECURITY-950)
+> **Warning**
+> Older versions of this plugin may not be safe to use.
+> Please review the following warnings before using an older version:
+> - [Password stored in plain text](https://jenkins.io/security/advisory/2018-06-25/#SECURITY-950)
 
 ## About
 
