@@ -38,7 +38,7 @@
         <hpi.compatibleSinceVersion>2.0.0</hpi.compatibleSinceVersion>
 
         <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-        <jenkins.version>2.387.1</jenkins.version>
+        <jenkins.version>2.387.3</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
 
