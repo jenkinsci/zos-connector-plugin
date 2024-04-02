@@ -38,7 +38,7 @@
         <hpi.compatibleSinceVersion>2.0.0</hpi.compatibleSinceVersion>
 
         <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-        <jenkins.version>2.387.1</jenkins.version>
+        <jenkins.version>2.426.3</jenkins.version>
         <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
     </properties>
 
@@ -47,8 +47,8 @@
             <dependency>
                 <!-- Pick up common dependencies for the selected LTS line: https://github.com/jenkinsci/bom#usage -->
                 <groupId>io.jenkins.tools.bom</groupId>
-                <artifactId>bom-2.375.x</artifactId>
-                <version>2198.v39c76fc308ca</version>
+                <artifactId>bom-2.426.x</artifactId>
+                <version>2950.va_633b_f42f759</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -83,7 +83,7 @@
         <dependency>
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>credentials</artifactId>
-            <version>1309.v8835d63eb_d8a_</version>
+            <version>1337.v60b_d7b_c7b_c9f</version>
         </dependency>
     </dependencies>
 
