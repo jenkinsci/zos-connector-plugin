@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>4.80</version>
+        <version>4.81</version>
         <relativePath />
     </parent>
     <artifactId>zos-connector</artifactId>
@@ -63,7 +63,7 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
-            <version>2.0.12</version>
+            <version>2.0.13</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
