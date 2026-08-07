@@ -2,11 +2,11 @@ package org.jenkinsci.plugins.IBM_zOS_Connector;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
+import hudson.Util;
 import hudson.model.Item;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jenkins.model.Jenkins;
-import org.apache.commons.lang.StringUtils;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.QueryParameter;
 
@@ -24,7 +24,7 @@ class PermissionsChecker {
                 return FormValidation.ok();
             }
         }
-        if (StringUtils.isBlank(value)) {
+        if (Util.fixEmptyAndTrim(value) == null) {
             return FormValidation.ok();
         }
         if (value.startsWith("${") && value.endsWith("}")) {
